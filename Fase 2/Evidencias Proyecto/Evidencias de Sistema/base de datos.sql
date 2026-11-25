@@ -1,0 +1,3025 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict ShOBzQR2R7jntTV1R60Vnaq5rcFiPgKhhNufk48LXPSJwJ5FMQDD5Gsn73ZYxka
+
+-- Dumped from database version 16.15 (Debian 16.15-1.pgdg12+2)
+-- Dumped by pg_dump version 16.15 (Debian 16.15-1.pgdg12+2)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: btree_gist; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION btree_gist; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION btree_gist IS 'support for indexing common datatypes in GiST';
+
+
+--
+-- Name: auditoria_bloquear_modificacion(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.auditoria_bloquear_modificacion() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+        RAISE EXCEPTION 'auditoria_registroauditoria es de solo escritura';
+    END;
+    $$;
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: agenda_bloqueohorario; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agenda_bloqueohorario (
+    id uuid NOT NULL,
+    inicio timestamp with time zone NOT NULL,
+    fin timestamp with time zone NOT NULL,
+    motivo character varying(200) NOT NULL,
+    creado_en timestamp with time zone NOT NULL,
+    profesional_id uuid NOT NULL,
+    CONSTRAINT bloqueo_fin_posterior_al_inicio CHECK ((fin > inicio))
+);
+
+
+--
+-- Name: agenda_cita; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agenda_cita (
+    id uuid NOT NULL,
+    inicio timestamp with time zone NOT NULL,
+    fin timestamp with time zone NOT NULL,
+    estado character varying(20) NOT NULL,
+    precio integer NOT NULL,
+    comentarios_paciente text NOT NULL,
+    creada_en timestamp with time zone NOT NULL,
+    cancelada_en timestamp with time zone,
+    motivo_cancelacion character varying(200) NOT NULL,
+    paciente_id uuid NOT NULL,
+    profesional_id uuid NOT NULL,
+    tratamiento_id uuid NOT NULL,
+    CONSTRAINT agenda_cita_precio_check CHECK ((precio >= 0)),
+    CONSTRAINT cita_fin_posterior_al_inicio CHECK ((fin > inicio))
+);
+
+
+--
+-- Name: agenda_disponibilidad; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agenda_disponibilidad (
+    id uuid NOT NULL,
+    dia_semana smallint NOT NULL,
+    hora_inicio time without time zone NOT NULL,
+    hora_fin time without time zone NOT NULL,
+    activa boolean NOT NULL,
+    profesional_id uuid NOT NULL,
+    CONSTRAINT agenda_disponibilidad_dia_semana_check CHECK ((dia_semana >= 0)),
+    CONSTRAINT disponibilidad_dia_valido CHECK (((dia_semana >= 0) AND (dia_semana <= 6))),
+    CONSTRAINT disponibilidad_horas_validas CHECK ((hora_fin > hora_inicio))
+);
+
+
+--
+-- Name: agenda_notificacion; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agenda_notificacion (
+    id uuid NOT NULL,
+    tipo character varying(20) NOT NULL,
+    canal character varying(10) NOT NULL,
+    asunto character varying(200) NOT NULL,
+    cuerpo text NOT NULL,
+    programada_para timestamp with time zone NOT NULL,
+    estado character varying(10) NOT NULL,
+    enviada_en timestamp with time zone,
+    intentos smallint NOT NULL,
+    error character varying(500) NOT NULL,
+    creada_en timestamp with time zone NOT NULL,
+    cita_id uuid,
+    destinatario_id uuid NOT NULL,
+    CONSTRAINT agenda_notificacion_intentos_check CHECK ((intentos >= 0))
+);
+
+
+--
+-- Name: agenda_tratamiento; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.agenda_tratamiento (
+    id uuid NOT NULL,
+    nombre character varying(120) NOT NULL,
+    descripcion text NOT NULL,
+    duracion_min integer NOT NULL,
+    precio integer NOT NULL,
+    activo boolean NOT NULL,
+    descripcion_detallada text NOT NULL,
+    CONSTRAINT agenda_tratamiento_duracion_min_check CHECK ((duracion_min >= 0)),
+    CONSTRAINT agenda_tratamiento_precio_check CHECK ((precio >= 0)),
+    CONSTRAINT tratamiento_duracion_positiva CHECK ((duracion_min > 0))
+);
+
+
+--
+-- Name: auditoria_registroauditoria; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.auditoria_registroauditoria (
+    id uuid NOT NULL,
+    accion character varying(40) NOT NULL,
+    recurso_tipo character varying(40) NOT NULL,
+    recurso_id uuid,
+    ip inet,
+    detalle jsonb NOT NULL,
+    fecha timestamp with time zone NOT NULL,
+    usuario_id uuid
+);
+
+
+--
+-- Name: auth_group; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.auth_group (
+    id integer NOT NULL,
+    name character varying(150) NOT NULL
+);
+
+
+--
+-- Name: auth_group_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.auth_group ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.auth_group_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: auth_group_permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.auth_group_permissions (
+    id bigint NOT NULL,
+    group_id integer NOT NULL,
+    permission_id integer NOT NULL
+);
+
+
+--
+-- Name: auth_group_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.auth_group_permissions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.auth_group_permissions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: auth_permission; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.auth_permission (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    content_type_id integer NOT NULL,
+    codename character varying(100) NOT NULL
+);
+
+
+--
+-- Name: auth_permission_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.auth_permission ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.auth_permission_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: cache_mypodo; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cache_mypodo (
+    cache_key character varying(255) NOT NULL,
+    value text NOT NULL,
+    expires timestamp with time zone NOT NULL
+);
+
+
+--
+-- Name: chatbot_conversacionchatbot; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.chatbot_conversacionchatbot (
+    id uuid NOT NULL,
+    creada_en timestamp with time zone NOT NULL,
+    actualizada_en timestamp with time zone NOT NULL,
+    paciente_id uuid
+);
+
+
+--
+-- Name: chatbot_fotochatbot; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.chatbot_fotochatbot (
+    id uuid NOT NULL,
+    contenido bytea NOT NULL,
+    media_type character varying(20) NOT NULL,
+    creada_en timestamp with time zone NOT NULL,
+    interaccion_id uuid NOT NULL
+);
+
+
+--
+-- Name: chatbot_interaccionchatbot; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.chatbot_interaccionchatbot (
+    id uuid NOT NULL,
+    tipo character varying(10) NOT NULL,
+    consulta text NOT NULL,
+    con_foto boolean NOT NULL,
+    respuesta text NOT NULL,
+    categoria_triaje character varying(15) NOT NULL,
+    requiere_derivacion boolean NOT NULL,
+    motivo_derivacion character varying(300) NOT NULL,
+    sugerir_reserva boolean NOT NULL,
+    implementacion character varying(10) NOT NULL,
+    latencia_ms integer NOT NULL,
+    creada_en timestamp with time zone NOT NULL,
+    conversacion_id uuid NOT NULL,
+    paciente_id uuid,
+    CONSTRAINT chatbot_interaccionchatbot_latencia_ms_check CHECK ((latencia_ms >= 0))
+);
+
+
+--
+-- Name: clinica_atencionclinica; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinica_atencionclinica (
+    id uuid NOT NULL,
+    fecha timestamp with time zone NOT NULL,
+    motivo_consulta text NOT NULL,
+    diagnostico text NOT NULL,
+    observacion text NOT NULL,
+    tratamiento text NOT NULL,
+    indicaciones text NOT NULL,
+    proxima_revision date,
+    cita_id uuid,
+    profesional_id uuid NOT NULL,
+    ficha_id uuid NOT NULL,
+    corrige_id uuid,
+    motivo_correccion character varying(200) NOT NULL,
+    pie_derecho text NOT NULL,
+    pie_izquierdo text NOT NULL,
+    termino timestamp with time zone,
+    CONSTRAINT atencion_correccion_con_motivo CHECK (((corrige_id IS NULL) OR (NOT ((motivo_correccion)::text = ''::text)))),
+    CONSTRAINT atencion_termino_valido CHECK (((termino IS NULL) OR (termino >= fecha)))
+);
+
+
+--
+-- Name: clinica_consentimiento; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinica_consentimiento (
+    id uuid NOT NULL,
+    tipo character varying(40) NOT NULL,
+    version_texto character varying(20) NOT NULL,
+    aceptado_en timestamp with time zone NOT NULL,
+    revocado_en timestamp with time zone,
+    paciente_id uuid NOT NULL,
+    CONSTRAINT consentimiento_revocacion_valida CHECK (((revocado_en IS NULL) OR (revocado_en >= aceptado_en)))
+);
+
+
+--
+-- Name: clinica_derivacion; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinica_derivacion (
+    id uuid NOT NULL,
+    especialidad_destino character varying(30) NOT NULL,
+    especialidad_detalle character varying(100) NOT NULL,
+    motivo text NOT NULL,
+    resumen_clinico text NOT NULL,
+    emitida_en timestamp with time zone NOT NULL,
+    atencion_id uuid NOT NULL,
+    CONSTRAINT derivacion_otra_con_detalle CHECK (((NOT ((especialidad_destino)::text = 'otra'::text)) OR (NOT ((especialidad_detalle)::text = ''::text))))
+);
+
+
+--
+-- Name: clinica_fichaclinica; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinica_fichaclinica (
+    id uuid NOT NULL,
+    otras_patologias_cronicas text NOT NULL,
+    alergias text NOT NULL,
+    medicamentos text NOT NULL,
+    observaciones text NOT NULL,
+    creada_en timestamp with time zone NOT NULL,
+    actualizada_en timestamp with time zone NOT NULL,
+    paciente_id uuid NOT NULL,
+    amputaciones boolean,
+    calzado_adecuado boolean,
+    camina_con_ayuda boolean,
+    diabetes boolean,
+    hta boolean,
+    lugar_atencion_salud character varying(150) NOT NULL,
+    presion_arterial character varying(15) NOT NULL,
+    pulso_pedio_derecho character varying(12) NOT NULL,
+    pulso_pedio_izquierdo character varying(12) NOT NULL,
+    pulso_radial character varying(12) NOT NULL,
+    ulcera_actual boolean,
+    ulcera_previa boolean,
+    varices boolean
+);
+
+
+--
+-- Name: clinica_marcapie; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clinica_marcapie (
+    id uuid NOT NULL,
+    simbolo character varying(30) NOT NULL,
+    vista character varying(20) NOT NULL,
+    x double precision NOT NULL,
+    y double precision NOT NULL,
+    ficha_id uuid NOT NULL,
+    atencion_alta_id uuid NOT NULL,
+    creada_en timestamp with time zone NOT NULL,
+    atencion_baja_id uuid,
+    retirada_en timestamp with time zone,
+    motivo_baja character varying(200) NOT NULL,
+    CONSTRAINT marca_pie_dentro_de_la_vista CHECK (((x >= (0.0)::double precision) AND (x <= (1.0)::double precision) AND (y >= (0.0)::double precision) AND (y <= (1.0)::double precision))),
+    CONSTRAINT marca_pie_retiro_valido CHECK ((((atencion_baja_id IS NULL) AND (retirada_en IS NULL)) OR ((atencion_baja_id IS NOT NULL) AND (retirada_en >= creada_en) AND (retirada_en IS NOT NULL))))
+);
+
+
+--
+-- Name: cuentas_certificacion; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cuentas_certificacion (
+    id uuid NOT NULL,
+    nombre character varying(200) NOT NULL,
+    institucion character varying(150) NOT NULL,
+    anio smallint NOT NULL,
+    documento bytea,
+    documento_tipo character varying(30) NOT NULL,
+    documento_nombre character varying(150) NOT NULL,
+    verificada boolean NOT NULL,
+    verificada_en timestamp with time zone,
+    creada_en timestamp with time zone NOT NULL,
+    profesional_id uuid NOT NULL,
+    verificada_por_id uuid,
+    CONSTRAINT cuentas_certificacion_anio_check CHECK ((anio >= 0))
+);
+
+
+--
+-- Name: cuentas_codigorespaldo; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cuentas_codigorespaldo (
+    id uuid NOT NULL,
+    huella character varying(64) NOT NULL,
+    usado_en timestamp with time zone,
+    creado_en timestamp with time zone NOT NULL,
+    usuario_id uuid NOT NULL
+);
+
+
+--
+-- Name: cuentas_paciente; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cuentas_paciente (
+    usuario_id uuid NOT NULL,
+    rut character varying(12) NOT NULL,
+    fecha_nacimiento date NOT NULL,
+    direccion character varying(255) NOT NULL,
+    comuna character varying(100) NOT NULL,
+    actividad character varying(100) NOT NULL,
+    telefono_contacto character varying(20) NOT NULL
+);
+
+
+--
+-- Name: cuentas_profesional; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cuentas_profesional (
+    usuario_id uuid NOT NULL,
+    especialidad character varying(100) NOT NULL,
+    numero_colegiado character varying(50) NOT NULL,
+    pausa_entre_citas_min smallint NOT NULL,
+    descripcion text NOT NULL,
+    anio_titulo smallint,
+    foto bytea,
+    foto_actualizada_en timestamp with time zone,
+    institucion_titulo character varying(150) NOT NULL,
+    titulo character varying(150) NOT NULL,
+    CONSTRAINT cuentas_profesional_anio_titulo_check CHECK ((anio_titulo >= 0)),
+    CONSTRAINT cuentas_profesional_pausa_entre_citas_min_check CHECK ((pausa_entre_citas_min >= 0))
+);
+
+
+--
+-- Name: cuentas_profesional_tratamientos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cuentas_profesional_tratamientos (
+    id bigint NOT NULL,
+    profesional_id uuid NOT NULL,
+    tratamiento_id uuid NOT NULL
+);
+
+
+--
+-- Name: cuentas_profesional_tratamientos_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cuentas_profesional_tratamientos ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.cuentas_profesional_tratamientos_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: cuentas_registropendiente; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cuentas_registropendiente (
+    id uuid NOT NULL,
+    email character varying(254) NOT NULL,
+    datos jsonb NOT NULL,
+    password_hash character varying(128) NOT NULL,
+    token_hash character varying(64) NOT NULL,
+    siguiente character varying(500) NOT NULL,
+    creado_en timestamp with time zone NOT NULL,
+    vence_en timestamp with time zone NOT NULL
+);
+
+
+--
+-- Name: cuentas_usuario; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cuentas_usuario (
+    password character varying(128) NOT NULL,
+    last_login timestamp with time zone,
+    is_superuser boolean NOT NULL,
+    id uuid NOT NULL,
+    email character varying(254) NOT NULL,
+    nombre character varying(150) NOT NULL,
+    apellido character varying(150) NOT NULL,
+    rol character varying(20) NOT NULL,
+    is_active boolean NOT NULL,
+    is_staff boolean NOT NULL,
+    fecha_registro timestamp with time zone NOT NULL,
+    telefono character varying(20) NOT NULL
+);
+
+
+--
+-- Name: cuentas_usuario_groups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cuentas_usuario_groups (
+    id bigint NOT NULL,
+    usuario_id uuid NOT NULL,
+    group_id integer NOT NULL
+);
+
+
+--
+-- Name: cuentas_usuario_groups_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cuentas_usuario_groups ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.cuentas_usuario_groups_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: cuentas_usuario_user_permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cuentas_usuario_user_permissions (
+    id bigint NOT NULL,
+    usuario_id uuid NOT NULL,
+    permission_id integer NOT NULL
+);
+
+
+--
+-- Name: cuentas_usuario_user_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.cuentas_usuario_user_permissions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.cuentas_usuario_user_permissions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: django_admin_log; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.django_admin_log (
+    id integer NOT NULL,
+    action_time timestamp with time zone NOT NULL,
+    object_id text,
+    object_repr character varying(200) NOT NULL,
+    action_flag smallint NOT NULL,
+    change_message text NOT NULL,
+    content_type_id integer,
+    user_id uuid NOT NULL,
+    CONSTRAINT django_admin_log_action_flag_check CHECK ((action_flag >= 0))
+);
+
+
+--
+-- Name: django_admin_log_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.django_admin_log ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.django_admin_log_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: django_content_type; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.django_content_type (
+    id integer NOT NULL,
+    app_label character varying(100) NOT NULL,
+    model character varying(100) NOT NULL
+);
+
+
+--
+-- Name: django_content_type_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.django_content_type ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.django_content_type_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: django_migrations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.django_migrations (
+    id bigint NOT NULL,
+    app character varying(255) NOT NULL,
+    name character varying(255) NOT NULL,
+    applied timestamp with time zone NOT NULL
+);
+
+
+--
+-- Name: django_migrations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.django_migrations ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.django_migrations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: django_session; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.django_session (
+    session_key character varying(40) NOT NULL,
+    session_data text NOT NULL,
+    expire_date timestamp with time zone NOT NULL
+);
+
+
+--
+-- Name: otp_totp_totpdevice; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.otp_totp_totpdevice (
+    id integer NOT NULL,
+    name character varying(64) NOT NULL,
+    confirmed boolean NOT NULL,
+    key character varying(80) NOT NULL,
+    step smallint NOT NULL,
+    t0 bigint NOT NULL,
+    digits smallint NOT NULL,
+    tolerance smallint NOT NULL,
+    drift smallint NOT NULL,
+    last_t bigint NOT NULL,
+    user_id uuid NOT NULL,
+    throttling_failure_count integer NOT NULL,
+    throttling_failure_timestamp timestamp with time zone,
+    created_at timestamp with time zone,
+    last_used_at timestamp with time zone,
+    CONSTRAINT otp_totp_totpdevice_digits_check CHECK ((digits >= 0)),
+    CONSTRAINT otp_totp_totpdevice_step_check CHECK ((step >= 0)),
+    CONSTRAINT otp_totp_totpdevice_throttling_failure_count_check CHECK ((throttling_failure_count >= 0)),
+    CONSTRAINT otp_totp_totpdevice_tolerance_check CHECK ((tolerance >= 0))
+);
+
+
+--
+-- Name: otp_totp_totpdevice_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.otp_totp_totpdevice ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.otp_totp_totpdevice_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: pagos_pago; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pagos_pago (
+    id uuid NOT NULL,
+    monto integer NOT NULL,
+    orden_compra character varying(26) NOT NULL,
+    token character varying(64),
+    url_webpay character varying(200) NOT NULL,
+    estado character varying(20) NOT NULL,
+    vence_en timestamp with time zone NOT NULL,
+    codigo_respuesta smallint,
+    codigo_autorizacion character varying(10) NOT NULL,
+    tipo_pago character varying(2) NOT NULL,
+    cuotas smallint NOT NULL,
+    tarjeta_final character varying(4) NOT NULL,
+    fecha_transaccion timestamp with time zone,
+    creado_en timestamp with time zone NOT NULL,
+    confirmado_en timestamp with time zone,
+    reembolsado_en timestamp with time zone,
+    tipo_reembolso character varying(10) NOT NULL,
+    intentos_reembolso smallint NOT NULL,
+    error character varying(500) NOT NULL,
+    cita_id uuid NOT NULL,
+    motivo_reembolso character varying(15) NOT NULL,
+    reembolso_iniciado_en timestamp with time zone,
+    token_creado_en timestamp with time zone,
+    tokens_anteriores character varying(64)[] NOT NULL,
+    CONSTRAINT pago_monto_positivo CHECK ((monto > 0)),
+    CONSTRAINT pagos_pago_cuotas_check CHECK ((cuotas >= 0)),
+    CONSTRAINT pagos_pago_intentos_reembolso_check CHECK ((intentos_reembolso >= 0)),
+    CONSTRAINT pagos_pago_monto_check CHECK ((monto >= 0))
+);
+
+
+--
+-- Data for Name: agenda_bloqueohorario; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.agenda_bloqueohorario (id, inicio, fin, motivo, creado_en, profesional_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: agenda_cita; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.agenda_cita (id, inicio, fin, estado, precio, comentarios_paciente, creada_en, cancelada_en, motivo_cancelacion, paciente_id, profesional_id, tratamiento_id) FROM stdin;
+a61bd517-3c74-4cb2-af09-54851f653a0b	2026-10-01 10:15:00-03	2026-10-01 10:45:00-03	cancelada	25000		2026-11-25 00:34:56.838365-03	2026-09-29 10:15:00-03	No puedo asistir ese día.	355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+e874944a-d57e-4904-a9ca-68f6c5b9f3c8	2026-10-01 09:00:00-03	2026-10-01 09:45:00-03	realizada	30000		2026-11-25 00:34:56.841315-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+0fc1f43f-2abd-4c46-9672-c80edbcbb358	2026-10-01 10:15:00-03	2026-10-01 11:00:00-03	realizada	30000		2026-11-25 00:34:56.859136-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+df3d494d-bb65-45d6-8791-19552595cfcf	2026-10-02 14:00:00-03	2026-10-02 14:45:00-03	realizada	30000		2026-11-25 00:34:56.875968-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+e7714d09-f8e9-49f8-ab81-88ab048050df	2026-10-02 10:15:00-03	2026-10-02 11:15:00-03	no_asistio	35000		2026-11-25 00:34:56.882857-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+7669ba5b-f38c-492d-ace4-3240709e36dd	2026-10-05 09:00:00-03	2026-10-05 09:30:00-03	realizada	25000		2026-11-25 00:34:56.884576-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+2dffce38-b3cf-4d2d-8284-312339b00c47	2026-10-05 10:15:00-03	2026-10-05 11:00:00-03	realizada	20000		2026-11-25 00:34:56.900281-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+6de3d073-2109-4c62-acbc-dd8865d1ee40	2026-10-05 14:00:00-03	2026-10-05 14:30:00-03	realizada	25000		2026-11-25 00:34:56.912968-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+6c323a65-0463-4e73-b1e8-af5f8ddd7725	2026-10-05 16:30:00-03	2026-10-05 17:00:00-03	realizada	25000		2026-11-25 00:34:56.929577-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+dadcd39a-0ec1-4ecb-94de-439399505c19	2026-10-05 09:00:00-03	2026-10-05 09:30:00-03	realizada	25000		2026-11-25 00:34:56.939016-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+9ff9ba48-b65a-477e-a6e0-345ee677c477	2026-10-05 10:15:00-03	2026-10-05 11:15:00-03	realizada	35000		2026-11-25 00:34:56.94931-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+d291ef49-b848-4817-9065-e7ddfc8b3ff2	2026-10-06 11:30:00-03	2026-10-06 12:15:00-03	realizada	20000		2026-11-25 00:34:56.962368-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+d0ff8347-ae45-4b1c-833b-551e9ecc3ede	2026-10-06 14:00:00-03	2026-10-06 14:45:00-03	realizada	30000		2026-11-25 00:34:56.970154-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+54b6b43d-1d35-430d-9bcd-f5657bb075a1	2026-10-07 09:00:00-03	2026-10-07 09:45:00-03	realizada	30000		2026-11-25 00:34:56.976974-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+d436d73f-8385-4f5a-80e7-a15e7987affc	2026-10-07 14:00:00-03	2026-10-07 14:45:00-03	realizada	20000		2026-11-25 00:34:56.985421-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+674ea182-6c00-4c68-8d2b-43c5aedd7b96	2026-10-07 15:15:00-03	2026-10-07 16:00:00-03	realizada	20000		2026-11-25 00:34:56.997506-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+2742e2db-5546-4d4c-b252-6626d45ab224	2026-10-07 16:30:00-03	2026-10-07 17:00:00-03	realizada	25000		2026-11-25 00:34:57.010709-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+aaee3ad4-6ae6-4b72-8ce6-98e3f14b3299	2026-10-07 16:30:00-03	2026-10-07 17:15:00-03	realizada	30000		2026-11-25 00:34:57.021202-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+f3c1cc99-f968-4bb7-b03f-a785380f079c	2026-10-08 10:15:00-03	2026-10-08 10:45:00-03	realizada	25000		2026-11-25 00:34:57.032938-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+2143e837-75b0-4d6d-9477-3e84121eacfa	2026-10-08 11:30:00-03	2026-10-08 12:00:00-03	realizada	25000		2026-11-25 00:34:57.046784-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+c65855f9-48e9-4571-8e6f-737514ded836	2026-10-08 16:30:00-03	2026-10-08 17:15:00-03	realizada	20000		2026-11-25 00:34:57.053515-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+31b1fec2-3f73-45eb-8239-dc1ed73dd41f	2026-10-08 15:15:00-03	2026-10-08 16:00:00-03	no_asistio	20000		2026-11-25 00:34:57.065335-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+4cfa4740-ffbb-4345-84c4-c01c3918e498	2026-10-09 10:15:00-03	2026-10-09 11:15:00-03	realizada	35000		2026-11-25 00:34:57.067389-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+be9b7e6f-5499-4c3f-8248-ebae34b1b7a6	2026-10-09 11:30:00-03	2026-10-09 12:15:00-03	realizada	30000		2026-11-25 00:34:57.077272-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+7ad06195-ee74-460e-a4ff-50b883fd63bd	2026-10-09 15:15:00-03	2026-10-09 16:15:00-03	realizada	35000		2026-11-25 00:34:57.08693-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+67e88e08-a2fa-486a-928a-52b8aac9369a	2026-10-09 09:00:00-03	2026-10-09 09:30:00-03	realizada	25000		2026-11-25 00:34:57.098071-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+2e577bef-3e1b-4e1d-815c-c5ca8e73c1ee	2026-10-12 10:15:00-03	2026-10-12 11:15:00-03	realizada	35000		2026-11-25 00:34:57.108715-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+8683891e-04f1-4a3a-ab53-b3d060a104aa	2026-10-12 11:30:00-03	2026-10-12 12:15:00-03	realizada	30000		2026-11-25 00:34:57.116133-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+bc8ed007-5327-470e-a02f-2a3ef4aaf262	2026-10-12 15:15:00-03	2026-10-12 16:00:00-03	realizada	30000		2026-11-25 00:34:57.124088-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+d1901ac0-78e6-4cbd-a948-271fdaeaa882	2026-10-12 16:30:00-03	2026-10-12 17:30:00-03	no_asistio	35000		2026-11-25 00:34:57.137117-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+3cc03be7-0e0b-41dd-bb4e-b56c4a8295b5	2026-10-12 10:15:00-03	2026-10-12 11:15:00-03	realizada	35000		2026-11-25 00:34:57.139602-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+caf21d0d-f33f-46ec-8131-e054dabe9bab	2026-10-13 14:00:00-03	2026-10-13 14:30:00-03	realizada	25000		2026-11-25 00:34:57.148022-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+3ca7947e-35e6-47ca-a535-e9868c86b78d	2026-10-13 10:15:00-03	2026-10-13 10:45:00-03	no_asistio	25000		2026-11-25 00:34:57.159707-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+74bc1db7-4529-4b91-9dc1-7a1d25ebd1d8	2026-10-14 09:00:00-03	2026-10-14 09:30:00-03	realizada	25000		2026-11-25 00:34:57.162646-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+2c6749b9-4bbe-4b4b-827f-f878b80207bb	2026-10-14 10:15:00-03	2026-10-14 11:00:00-03	no_asistio	30000		2026-11-25 00:34:57.175219-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+9783ecc7-3658-4caf-9da8-5df4ed761204	2026-10-14 16:30:00-03	2026-10-14 17:15:00-03	realizada	20000		2026-11-25 00:34:57.177086-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+2b3636ac-4337-46cb-a000-70b1f3a57762	2026-10-14 11:30:00-03	2026-10-14 12:15:00-03	no_asistio	30000		2026-11-25 00:34:57.185751-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+084212c9-27f6-46cf-afb8-34887164a881	2026-10-14 16:30:00-03	2026-10-14 17:15:00-03	realizada	30000		2026-11-25 00:34:57.187315-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+689c3a37-a4b4-4a50-ad83-65ec5d9f4106	2026-10-15 10:15:00-03	2026-10-15 11:15:00-03	realizada	35000		2026-11-25 00:34:57.194108-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+dd1aedf1-35d2-40bf-a688-d4c29fe5b31f	2026-10-15 14:00:00-03	2026-10-15 15:00:00-03	realizada	35000		2026-11-25 00:34:57.203212-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+98872bd6-571d-44e1-9f0a-e731000a515f	2026-10-15 16:30:00-03	2026-10-15 17:15:00-03	realizada	20000		2026-11-25 00:34:57.210512-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+a55cf26f-2ecc-482a-bec2-0f975fb2d605	2026-10-15 09:00:00-03	2026-10-15 09:45:00-03	realizada	30000		2026-11-25 00:34:57.218508-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+ee9c7d89-bf27-4fc4-9bfe-c6c1f0422366	2026-10-16 10:15:00-03	2026-10-16 10:45:00-03	cancelada	25000		2026-11-25 00:34:57.226644-03	2026-10-14 10:15:00-03	No puedo asistir ese día.	fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+d147f617-50c3-4e4a-adb2-a65a0e10284b	2026-10-16 14:00:00-03	2026-10-16 14:45:00-03	realizada	20000		2026-11-25 00:34:57.22818-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+bfa911a3-ceda-4a81-a7b2-4a2c36ea5453	2026-10-16 16:30:00-03	2026-10-16 17:30:00-03	realizada	35000		2026-11-25 00:34:57.239761-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+5e53f741-dbfd-4355-a8a2-bbefedad546a	2026-10-16 09:00:00-03	2026-10-16 09:45:00-03	realizada	20000		2026-11-25 00:34:57.248425-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+00df3a56-157a-44a3-9307-c9b89558133c	2026-10-16 11:30:00-03	2026-10-16 12:15:00-03	realizada	30000		2026-11-25 00:34:57.258692-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+8e049dcf-3d04-4a84-b3b0-c9da9dd74446	2026-10-19 11:30:00-03	2026-10-19 12:30:00-03	realizada	35000		2026-11-25 00:34:57.268754-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+0631dba0-8f6f-4ee1-b915-08d4fdd4811a	2026-10-19 14:00:00-03	2026-10-19 14:45:00-03	realizada	30000		2026-11-25 00:34:57.27818-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+c7db6ac4-0ef8-4168-a37a-927faa1d4d43	2026-10-19 16:30:00-03	2026-10-19 17:00:00-03	realizada	25000		2026-11-25 00:34:57.286155-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+86c763ba-b237-4a2d-be24-dafdb116b87d	2026-10-20 11:30:00-03	2026-10-20 12:15:00-03	no_asistio	30000		2026-11-25 00:34:57.294714-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+345eda25-66df-498c-abd8-73013d94052d	2026-10-20 14:00:00-03	2026-10-20 14:45:00-03	realizada	20000		2026-11-25 00:34:57.296146-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+9154cde6-06bc-44fa-914d-c19b0d3bd527	2026-10-20 16:30:00-03	2026-10-20 17:30:00-03	realizada	35000		2026-11-25 00:34:57.308858-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+4afb7cfb-0f66-4aec-b18e-f1063cc1d053	2026-10-20 11:30:00-03	2026-10-20 12:15:00-03	realizada	20000		2026-11-25 00:34:57.315688-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+15ce384f-fce9-4d3d-aba4-1a29f5507d6b	2026-10-20 16:30:00-03	2026-10-20 17:00:00-03	cancelada	25000		2026-11-25 00:34:57.321464-03	2026-10-18 16:30:00-03	No puedo asistir ese día.	f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+aeaf7c87-6019-4ed0-857a-a2a45242a1a6	2026-10-21 09:00:00-03	2026-10-21 09:45:00-03	realizada	30000		2026-11-25 00:34:57.323016-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+39dadb92-e93d-4392-95dc-3d4fdc363439	2026-10-21 11:30:00-03	2026-10-21 12:15:00-03	cancelada	30000		2026-11-25 00:34:57.333066-03	2026-10-19 11:30:00-03	No puedo asistir ese día.	cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+9728a8eb-e0f0-4da6-869c-4862f8e497d7	2026-10-21 14:00:00-03	2026-10-21 14:45:00-03	no_asistio	20000		2026-11-25 00:34:57.336058-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+d292e8e2-f6be-43f8-9b49-ba28735c70c4	2026-10-21 16:30:00-03	2026-10-21 17:15:00-03	realizada	20000		2026-11-25 00:34:57.338835-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+eb414015-6546-4fc8-821c-1b3ead01a264	2026-10-21 16:30:00-03	2026-10-21 17:00:00-03	realizada	25000		2026-11-25 00:34:57.347048-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+85880cd0-4cbe-4c63-887e-8db7a19e9bde	2026-10-22 11:30:00-03	2026-10-22 12:15:00-03	realizada	20000		2026-11-25 00:34:57.353287-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+ce721cf4-a1bf-4ee2-bfd8-3861a896c59b	2026-10-22 11:30:00-03	2026-10-22 12:00:00-03	cancelada	25000		2026-11-25 00:34:57.360191-03	2026-10-20 11:30:00-03	No puedo asistir ese día.	f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+cfa78ecb-1824-4b28-b500-74e4b7e7f15e	2026-10-22 16:30:00-03	2026-10-22 17:15:00-03	realizada	30000		2026-11-25 00:34:57.362269-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+866f63e6-ea51-4eb5-a962-93570e6ff75c	2026-10-23 14:00:00-03	2026-10-23 14:30:00-03	realizada	25000		2026-11-25 00:34:57.376147-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+779dd949-614d-41f7-9710-e7debc1cc9d9	2026-10-23 10:15:00-03	2026-10-23 11:15:00-03	realizada	35000		2026-11-25 00:34:57.383336-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+1e8c4c0b-b8ca-4525-9c22-6198e217bf21	2026-10-23 15:15:00-03	2026-10-23 16:15:00-03	cancelada	35000		2026-11-25 00:34:57.389209-03	2026-10-21 15:15:00-03	No puedo asistir ese día.	f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+52564881-40fc-4bd0-aeb5-f23e8758d276	2026-10-26 11:30:00-03	2026-10-26 12:30:00-03	realizada	35000		2026-11-25 00:34:57.390695-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+e0086a71-afa3-48b1-9b56-dfe72f6be95a	2026-10-26 14:00:00-03	2026-10-26 14:45:00-03	realizada	20000		2026-11-25 00:34:57.401071-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+b8d881e0-de07-4283-a1aa-950d90a5a72b	2026-10-26 15:15:00-03	2026-10-26 15:45:00-03	realizada	25000		2026-11-25 00:34:57.411745-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+5a122cb2-64ab-49d8-960c-f90861a59f2f	2026-10-26 14:00:00-03	2026-10-26 14:45:00-03	realizada	20000		2026-11-25 00:34:57.418801-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+7fb72f43-bb02-4bed-93e0-4aaba47a1b79	2026-10-26 16:30:00-03	2026-10-26 17:15:00-03	realizada	20000		2026-11-25 00:34:57.427542-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+6ed0c7f8-8285-4a9a-a86f-61c6c1f1d7e1	2026-10-27 10:15:00-03	2026-10-27 11:00:00-03	realizada	20000		2026-11-25 00:34:57.433752-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+00e08287-856c-4362-a3e2-839711c9bcb5	2026-10-27 14:00:00-03	2026-10-27 14:45:00-03	realizada	30000		2026-11-25 00:34:57.442642-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+e8d6f0ff-d47e-49e6-a63b-a60cf2644205	2026-10-27 10:15:00-03	2026-10-27 11:15:00-03	realizada	35000		2026-11-25 00:34:57.453147-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+4d679d1e-5e13-41e5-9c07-cf99a7ede82a	2026-10-27 15:15:00-03	2026-10-27 15:45:00-03	realizada	25000		2026-11-25 00:34:57.462332-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+2b433d03-f77b-4ddc-8120-9854c302b57b	2026-10-28 10:15:00-03	2026-10-28 10:45:00-03	no_asistio	25000		2026-11-25 00:34:57.472654-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+115319a1-4663-4498-8b65-20148e910c37	2026-10-28 11:30:00-03	2026-10-28 12:15:00-03	realizada	20000		2026-11-25 00:34:57.474786-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+d0a4a8ad-7934-4500-983e-ef8eb2873622	2026-10-28 14:00:00-03	2026-10-28 15:00:00-03	realizada	35000		2026-11-25 00:34:57.485229-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+6ceea6a8-414d-4f2a-bbe9-ed338a277441	2026-10-28 16:30:00-03	2026-10-28 17:00:00-03	realizada	25000		2026-11-25 00:34:57.491429-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+d92367b8-882b-4204-b5d3-15784f2256ee	2026-10-28 10:15:00-03	2026-10-28 11:00:00-03	realizada	20000		2026-11-25 00:34:57.498157-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+00926893-bedf-41b1-bebe-68d344e966eb	2026-10-28 14:00:00-03	2026-10-28 15:00:00-03	realizada	35000		2026-11-25 00:34:57.50534-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+98d15778-7f94-4194-9700-dfda524f8d9d	2026-10-29 09:00:00-03	2026-10-29 09:30:00-03	realizada	25000		2026-11-25 00:34:57.51489-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+e327091d-0782-42da-91a2-045f3cab484a	2026-10-29 11:30:00-03	2026-10-29 12:30:00-03	no_asistio	35000		2026-11-25 00:34:57.524682-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+50c9b746-f21d-49b8-b3fd-a09ded194499	2026-10-29 15:15:00-03	2026-10-29 16:00:00-03	realizada	20000		2026-11-25 00:34:57.526875-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+d151a45f-123c-4cf2-b7d3-7ac42e487a2c	2026-10-29 09:00:00-03	2026-10-29 10:00:00-03	cancelada	35000		2026-11-25 00:34:57.536187-03	2026-10-27 09:00:00-03	No puedo asistir ese día.	355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+1fc40e89-ce22-423e-8fe3-fceeba31e7f6	2026-10-29 16:30:00-03	2026-10-29 17:15:00-03	realizada	30000		2026-11-25 00:34:57.537578-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+c0e2f195-5faf-4368-a528-5f6e78a629c9	2026-10-30 10:15:00-03	2026-10-30 11:15:00-03	realizada	35000		2026-11-25 00:34:57.546548-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+b8e1be92-e532-4555-9352-eece0f2fb332	2026-10-30 14:00:00-03	2026-10-30 14:45:00-03	realizada	20000		2026-11-25 00:34:57.556238-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+b4e9af81-6938-4ac3-9436-515b7279f816	2026-10-30 10:15:00-03	2026-10-30 10:45:00-03	realizada	25000		2026-11-25 00:34:57.564952-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+05770074-c1b6-4281-a8cf-f101617da05d	2026-10-30 15:15:00-03	2026-10-30 16:15:00-03	realizada	35000		2026-11-25 00:34:57.576651-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+060b5571-2c50-4f86-954c-942b65ed0230	2026-11-02 14:00:00-03	2026-11-02 14:45:00-03	realizada	20000		2026-11-25 00:34:57.58542-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+89beed98-241d-4bef-b6af-e6b914f4def3	2026-11-02 09:00:00-03	2026-11-02 09:45:00-03	realizada	20000		2026-11-25 00:34:57.594654-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+48f1873e-7cc8-435e-9b62-ebd0229d59da	2026-11-02 11:30:00-03	2026-11-02 12:30:00-03	realizada	35000		2026-11-25 00:34:57.602708-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+c546da59-a7e2-44c4-a637-aa0f9b40bd95	2026-11-03 09:00:00-03	2026-11-03 10:00:00-03	realizada	35000		2026-11-25 00:34:57.610614-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+227e0c3c-4d9f-4497-9b15-b865dcf452e9	2026-11-03 10:15:00-03	2026-11-03 11:15:00-03	realizada	35000		2026-11-25 00:34:57.62145-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+1a84b51e-7738-4cbd-9542-0cfcc309fa7b	2026-11-03 16:30:00-03	2026-11-03 17:30:00-03	realizada	35000		2026-11-25 00:34:57.62907-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+9e4b6de4-1027-4efe-9dda-2f8a13070593	2026-11-03 10:15:00-03	2026-11-03 11:00:00-03	realizada	20000		2026-11-25 00:34:57.634761-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+882eea17-6e70-4f6d-b4df-2326bc4ff2ce	2026-11-04 10:15:00-03	2026-11-04 11:00:00-03	realizada	30000		2026-11-25 00:34:57.643478-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+dc07ce0e-9502-42ec-9e16-c668b8f225b4	2026-11-04 14:00:00-03	2026-11-04 14:30:00-03	realizada	25000		2026-11-25 00:34:57.657702-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+3fab472c-d075-4d39-b925-ed270790b840	2026-11-04 16:30:00-03	2026-11-04 17:00:00-03	realizada	25000		2026-11-25 00:34:57.670392-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+996ead59-ccb3-468b-8bcd-50387804c0fc	2026-11-04 16:30:00-03	2026-11-04 17:30:00-03	realizada	35000		2026-11-25 00:34:57.679795-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+083a7c4e-9988-4f04-8afe-3dc1ad569ba2	2026-11-05 09:00:00-03	2026-11-05 09:45:00-03	realizada	20000		2026-11-25 00:34:57.690606-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+0b73dd7f-3696-41ec-a2de-91afa5ed22ac	2026-11-05 15:15:00-03	2026-11-05 16:00:00-03	realizada	20000		2026-11-25 00:34:57.700016-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+5c1d5644-95c4-4dea-9673-5394edc1ac33	2026-11-05 16:30:00-03	2026-11-05 17:00:00-03	realizada	25000		2026-11-25 00:34:57.711269-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+4d76514b-372b-4dd9-a06f-0bd18a975178	2026-11-05 14:00:00-03	2026-11-05 14:30:00-03	realizada	25000		2026-11-25 00:34:57.728804-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+051fc4cf-f460-4413-abae-0c061004c585	2026-11-05 16:30:00-03	2026-11-05 17:00:00-03	realizada	25000		2026-11-25 00:34:57.743349-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+5e6ee57a-3e19-4b8a-b814-702490ab2153	2026-11-06 10:15:00-03	2026-11-06 11:00:00-03	realizada	30000		2026-11-25 00:34:57.753848-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+8b41cfe9-30fa-4da2-a856-33bf0bc5913d	2026-11-06 11:30:00-03	2026-11-06 12:15:00-03	realizada	20000		2026-11-25 00:34:57.762553-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+96cae045-ca56-4ee9-bc1a-7014a904cff4	2026-11-06 16:30:00-03	2026-11-06 17:00:00-03	realizada	25000		2026-11-25 00:34:57.775342-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+0c55595f-27bb-4fd2-8b65-dde9f4d20732	2026-11-09 10:15:00-03	2026-11-09 10:45:00-03	realizada	25000		2026-11-25 00:34:57.784782-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+30b86599-2d48-4c8f-b466-eed21a78fff3	2026-11-09 11:30:00-03	2026-11-09 12:15:00-03	cancelada	30000		2026-11-25 00:34:57.795775-03	2026-11-07 11:30:00-03	No puedo asistir ese día.	355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+ccf33b0b-682b-4492-9f4c-ad083153c738	2026-11-09 14:00:00-03	2026-11-09 14:30:00-03	no_asistio	25000		2026-11-25 00:34:57.798562-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+dab3a2c1-2a49-4b88-9dfb-66ea77e9ac3b	2026-11-09 09:00:00-03	2026-11-09 09:45:00-03	realizada	20000		2026-11-25 00:34:57.800458-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+4d2d1847-a359-4205-bf88-ca4f2ca5dd8a	2026-11-09 16:30:00-03	2026-11-09 17:30:00-03	realizada	35000		2026-11-25 00:34:57.811049-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+33bcccc4-c8d2-4e00-9ca4-02c79bbbc17d	2026-11-10 14:00:00-03	2026-11-10 14:45:00-03	realizada	30000		2026-11-25 00:34:57.821841-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+e96c27bb-9ac8-4380-8e03-d66d8b3fd8ff	2026-11-10 14:00:00-03	2026-11-10 15:00:00-03	realizada	35000		2026-11-25 00:34:57.831382-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+ea42a0b8-7cbf-4ede-a40f-6843ebe6e9cd	2026-11-11 09:00:00-03	2026-11-11 09:45:00-03	realizada	20000		2026-11-25 00:34:57.837389-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+4743f9c8-9c74-4bf0-9d09-c06c48efebf4	2026-11-11 10:15:00-03	2026-11-11 11:15:00-03	realizada	35000		2026-11-25 00:34:57.844249-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+9c8394b2-2520-42ed-a482-a04ad67d4936	2026-11-11 15:15:00-03	2026-11-11 16:15:00-03	realizada	35000		2026-11-25 00:34:57.851839-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+51d14000-f3c9-4919-9f3c-8b250e7aefb6	2026-11-11 10:15:00-03	2026-11-11 11:00:00-03	realizada	20000		2026-11-25 00:34:57.86093-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+e123bc8e-33f7-4717-8917-0e0190cd3de2	2026-11-11 14:00:00-03	2026-11-11 14:45:00-03	cancelada	30000		2026-11-25 00:34:57.870417-03	2026-11-09 14:00:00-03	No puedo asistir ese día.	355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+4afe7e71-5ee2-4f54-b423-b341969f5829	2026-11-12 09:00:00-03	2026-11-12 09:30:00-03	realizada	25000		2026-11-25 00:34:57.872156-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+c845795c-395d-4d75-aa2b-d6fc8ff6f004	2026-11-12 10:15:00-03	2026-11-12 11:00:00-03	cancelada	30000		2026-11-25 00:34:57.878531-03	2026-11-10 10:15:00-03	No puedo asistir ese día.	355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+1e5784e7-75d8-45fc-9b7f-8d95c6888404	2026-11-12 14:00:00-03	2026-11-12 14:45:00-03	cancelada	20000		2026-11-25 00:34:57.880016-03	2026-11-10 14:00:00-03	No puedo asistir ese día.	926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+e8a99420-9b6a-48d0-a050-1f10a8f66366	2026-11-12 09:00:00-03	2026-11-12 09:30:00-03	no_asistio	25000		2026-11-25 00:34:57.881737-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+b827e5e2-ce05-4032-b0d7-f1a114db1386	2026-11-12 11:30:00-03	2026-11-12 12:15:00-03	realizada	30000		2026-11-25 00:34:57.884724-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+9e1d153f-3b84-4403-9973-015d9f5dcfb2	2026-11-13 11:30:00-03	2026-11-13 12:15:00-03	realizada	30000		2026-11-25 00:34:57.894817-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+0a54323d-1dce-4f53-8748-76b46b4cacd7	2026-11-13 15:15:00-03	2026-11-13 15:45:00-03	realizada	25000		2026-11-25 00:34:57.904103-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+1ee6fa86-547c-4807-99f2-2befe6cf41d8	2026-11-13 14:00:00-03	2026-11-13 14:45:00-03	realizada	30000		2026-11-25 00:34:57.912087-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+59b783cb-a2d7-4645-881d-84a2cb8b5803	2026-11-13 15:15:00-03	2026-11-13 15:45:00-03	realizada	25000		2026-11-25 00:34:57.921011-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+598a9963-553f-4dcf-b885-1743f94fe8ba	2026-11-16 09:00:00-03	2026-11-16 09:45:00-03	realizada	30000		2026-11-25 00:34:57.933467-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+d089f1b4-c560-4018-9fd1-96bda141460d	2026-11-16 10:15:00-03	2026-11-16 11:15:00-03	realizada	35000		2026-11-25 00:34:57.939735-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+ec3d8bb7-c497-4cca-ae1b-7093cc2ae632	2026-11-17 16:30:00-03	2026-11-17 17:15:00-03	realizada	20000		2026-11-25 00:34:57.945642-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+eeebeebd-34a3-4bb9-8d3f-6f06aae1da61	2026-11-17 09:00:00-03	2026-11-17 10:00:00-03	no_asistio	35000		2026-11-25 00:34:57.956524-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+1ed34e64-01df-40a5-8a72-35420ea4df3f	2026-11-17 10:15:00-03	2026-11-17 11:00:00-03	realizada	30000		2026-11-25 00:34:57.959793-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+c111763a-fb77-487d-9fbc-0d53714779a9	2026-11-18 14:00:00-03	2026-11-18 14:45:00-03	realizada	30000		2026-11-25 00:34:57.969325-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+0ec62493-7d9d-4206-8f79-b1d85b439dbd	2026-11-18 10:15:00-03	2026-11-18 11:15:00-03	realizada	35000		2026-11-25 00:34:57.979317-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+7e6bc4e6-5e9d-4393-9293-be3fbd419949	2026-11-18 16:30:00-03	2026-11-18 17:30:00-03	realizada	35000		2026-11-25 00:34:57.989092-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+2923c159-8bf4-4b10-a57f-cbe19cba66f7	2026-11-19 09:00:00-03	2026-11-19 09:45:00-03	realizada	30000		2026-11-25 00:34:58.000929-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+a98044c7-810a-4180-9085-bf7549c6acbe	2026-11-19 11:30:00-03	2026-11-19 12:15:00-03	realizada	30000		2026-11-25 00:34:58.010396-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+01ca44e9-ce2c-4d56-9c03-7f89521751e4	2026-11-19 15:15:00-03	2026-11-19 16:00:00-03	realizada	20000		2026-11-25 00:34:58.019297-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+942b915a-d3ed-4032-b79a-baaee2de870b	2026-11-19 09:00:00-03	2026-11-19 09:45:00-03	realizada	30000		2026-11-25 00:34:58.028823-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+2486633d-6327-4338-a235-906084205403	2026-11-19 15:15:00-03	2026-11-19 16:15:00-03	realizada	35000		2026-11-25 00:34:58.039208-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+5fde5281-0efc-4fb8-a531-67d6e2a5d34f	2026-11-20 09:00:00-03	2026-11-20 09:45:00-03	realizada	30000		2026-11-25 00:34:58.045544-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+29ad9964-ab5f-41d5-bdeb-7b3ac15e0d98	2026-11-20 11:30:00-03	2026-11-20 12:15:00-03	realizada	30000		2026-11-25 00:34:58.053875-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+4d676a61-a2f7-49a9-b752-2d43ef9d27bc	2026-11-20 15:15:00-03	2026-11-20 15:45:00-03	realizada	25000		2026-11-25 00:34:58.065843-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+7c0e1702-764b-48e8-bc2f-2ab3d3855cc1	2026-11-20 16:30:00-03	2026-11-20 17:00:00-03	cancelada	25000		2026-11-25 00:34:58.073947-03	2026-11-18 16:30:00-03	No puedo asistir ese día.	cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+e75edf3a-46d1-4d53-9b3b-298bcd5cb7f9	2026-11-20 14:00:00-03	2026-11-20 14:45:00-03	realizada	30000		2026-11-25 00:34:58.075526-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+f8bb5a53-16a5-4480-b3ed-d5d8cc68296d	2026-11-20 16:30:00-03	2026-11-20 17:00:00-03	realizada	25000		2026-11-25 00:34:58.083102-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+b0399b8d-0e74-42a7-9483-1d41e0837b88	2026-11-23 11:30:00-03	2026-11-23 12:00:00-03	realizada	25000		2026-11-25 00:34:58.093761-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+e2ef2f28-f4a2-4fd6-a5b5-f6d8c287495e	2026-11-23 10:15:00-03	2026-11-23 11:00:00-03	realizada	20000		2026-11-25 00:34:58.106776-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+cc4dc7e2-bc49-4782-a923-e7582f2d6fd2	2026-11-23 11:30:00-03	2026-11-23 12:00:00-03	realizada	25000		2026-11-25 00:34:58.118186-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+9c1f4ccb-3ce9-429d-b298-b077a2ee6db6	2026-11-24 10:15:00-03	2026-11-24 11:00:00-03	realizada	30000		2026-11-25 00:34:58.12784-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+e33f504f-3f3a-4856-b95e-45b8a8705b82	2026-11-24 11:30:00-03	2026-11-24 12:00:00-03	realizada	25000		2026-11-25 00:34:58.143406-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+5437273d-9ffd-49a1-a865-ff583c429963	2026-11-24 16:30:00-03	2026-11-24 17:30:00-03	realizada	35000		2026-11-25 00:34:58.1543-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+49826534-1a5c-4a16-a395-e8505a08c907	2026-11-24 09:00:00-03	2026-11-24 10:00:00-03	realizada	35000		2026-11-25 00:34:58.166186-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+da872d39-8dcc-4ab4-a890-61910e4019e5	2026-11-24 16:30:00-03	2026-11-24 17:15:00-03	realizada	20000		2026-11-25 00:34:58.178674-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	503ce96e-312d-4705-8e09-b0db73b5aa78
+2fac162b-05c8-45d7-9c69-4a9291b5626e	2026-11-25 09:00:00-03	2026-11-25 09:30:00-03	confirmada	25000		2026-11-25 00:34:58.203694-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2
+a57831e5-b654-4c1c-a34c-8d1d4d1f81ab	2026-11-25 11:30:00-03	2026-11-25 12:30:00-03	confirmada	35000		2026-11-25 00:34:58.204993-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+b5ac7338-28b2-4046-9282-f9cd4f2d9fc8	2026-11-25 14:00:00-03	2026-11-25 14:45:00-03	confirmada	20000		2026-11-25 00:34:58.206106-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	503ce96e-312d-4705-8e09-b0db73b5aa78
+d46019c9-9a98-4032-bc47-1c12ab5ff7a1	2026-11-25 16:30:00-03	2026-11-25 17:15:00-03	confirmada	30000		2026-11-25 00:34:58.207667-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3
+5b5f895f-a751-4332-99bb-d38cc7d8e377	2026-11-27 09:00:00-03	2026-11-27 10:00:00-03	confirmada	35000	Cita de demostración.	2026-11-25 00:34:58.238709-03	\N		fb274a47-fb14-47e1-b3f3-f2c564a4ee91	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+38b70b4f-5d7d-4676-b844-d53758e7797f	2026-11-30 10:15:00-03	2026-11-30 11:15:00-03	confirmada	35000	Cita de demostración.	2026-11-25 00:34:58.258261-03	\N		926ee2d7-1575-4b18-9db6-367e2533fb11	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+ef7db830-17b0-4f36-8ee8-b630d485ad73	2026-12-01 11:30:00-03	2026-12-01 12:30:00-03	confirmada	35000	Cita de demostración.	2026-11-25 00:34:58.279447-03	\N		cfd9381d-db9c-47eb-884b-6e92b6666b65	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+992f5606-5f76-4a5d-9721-e16d74f32478	2026-12-02 14:00:00-03	2026-12-02 15:00:00-03	confirmada	35000	Cita de demostración.	2026-11-25 00:34:58.296336-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	52fe51c4-557f-4319-a459-1c5a9581f577	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+fba19f0b-0e6a-460a-9a10-31f6e92cf206	2026-11-27 09:00:00-03	2026-11-27 10:00:00-03	confirmada	35000	Cita de demostración.	2026-11-25 00:34:58.318265-03	\N		355a1a38-97ef-4c9f-85b1-46131401279e	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+f26414cd-e39d-4e8e-bbb3-919c6939a4a8	2026-11-30 10:15:00-03	2026-11-30 11:15:00-03	confirmada	35000	Cita de demostración.	2026-11-25 00:34:58.336515-03	\N		f8dae367-05d4-461c-8e5b-da0374c47bc2	0609d85f-d93f-40fa-b242-ca8639315999	52181d3e-1b01-4f79-92c1-5bb4fbe1eae3
+\.
+
+
+--
+-- Data for Name: agenda_disponibilidad; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.agenda_disponibilidad (id, dia_semana, hora_inicio, hora_fin, activa, profesional_id) FROM stdin;
+7ed9a7a9-2c6a-4ffb-a99d-b8df55c4fbcf	0	09:00:00	13:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+328726bf-a1a1-41f0-931f-0309477b20b2	0	14:00:00	18:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+ff4f16ed-a6d6-431d-ba6e-78bec4694032	1	09:00:00	13:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+0ff3d78a-fa56-4ead-8c92-6ae85b5ac59c	1	14:00:00	18:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+417a7129-f66c-45d8-9d04-7916f61c8db6	2	09:00:00	13:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+c1215c0c-c3cc-4185-8780-69c230d19f93	2	14:00:00	18:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+3e8e5638-f989-4de7-85de-1bc9cf7d5831	3	09:00:00	13:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+d9d8271d-6acd-44f3-aeb4-fac7102cfa4f	3	14:00:00	18:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+b00d5081-9eb2-4594-a92f-29c883f468f8	4	09:00:00	13:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+f81abdda-4292-4c7e-afcd-23605f306e70	4	14:00:00	18:00:00	t	52fe51c4-557f-4319-a459-1c5a9581f577
+950428b4-573c-4188-9adf-54962428bfae	0	09:00:00	13:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+51f2d035-481b-4728-a473-c79e1a7070ee	0	14:00:00	18:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+5f7f2d7c-6d2d-4b7f-8666-69fb57f33bc6	1	09:00:00	13:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+a59a83b7-def6-4a62-943b-22f476b5196d	1	14:00:00	18:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+c0ba904e-37bc-4861-bba3-2bb13c6adc1e	2	09:00:00	13:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+9ca7d4a0-e8e6-428c-845b-a3d44a27dc48	2	14:00:00	18:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+10429f74-64ac-4040-a69a-c472bbb5b4a3	3	09:00:00	13:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+3a41b00a-3db2-44f4-bf06-73c6bbba46c7	3	14:00:00	18:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+ad5c52e3-62b6-4d50-b3fa-b5a89ef890ef	4	09:00:00	13:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+5905615d-62f5-4b16-954a-e85cc19389e2	4	14:00:00	18:00:00	t	0609d85f-d93f-40fa-b242-ca8639315999
+\.
+
+
+--
+-- Data for Name: agenda_notificacion; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.agenda_notificacion (id, tipo, canal, asunto, cuerpo, programada_para, estado, enviada_en, intentos, error, creada_en, cita_id, destinatario_id) FROM stdin;
+5f793350-3890-4c5e-a579-a6a48cf93d39	reserva	email	Cita confirmada el 27/11/2026 a las 09:00	Hola María:\n\nTu cita podológica quedó confirmada el 27/11/2026 a las 09:00.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Camila Rojas\n\nLugar:\nConsulta podológica	2026-11-25 00:34:58.240428-03	pendiente	\N	0		2026-11-25 00:34:58.240641-03	5b5f895f-a751-4332-99bb-d38cc7d8e377	fb274a47-fb14-47e1-b3f3-f2c564a4ee91
+9d4f9e82-49a6-4cd5-b88d-c7a4962817d9	recordatorio	email	Recordatorio: tu cita el 27/11/2026 a las 09:00	Hola María:\n\nTe recordamos tu cita podológica el 27/11/2026 a las 09:00.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Camila Rojas\n\nLugar:\nConsulta podológica	2026-11-25 09:00:00-03	pendiente	\N	0		2026-11-25 00:34:58.242132-03	5b5f895f-a751-4332-99bb-d38cc7d8e377	fb274a47-fb14-47e1-b3f3-f2c564a4ee91
+58959512-6c95-4a17-8e9b-5c8fa2bf178a	reserva	email	Cita confirmada el 30/11/2026 a las 10:15	Hola Pedro:\n\nTu cita podológica quedó confirmada el 30/11/2026 a las 10:15.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Camila Rojas\n\nLugar:\nConsulta podológica	2026-11-25 00:34:58.260115-03	pendiente	\N	0		2026-11-25 00:34:58.260401-03	38b70b4f-5d7d-4676-b844-d53758e7797f	926ee2d7-1575-4b18-9db6-367e2533fb11
+b46587ad-eb37-46a2-9282-c8594cc78bf0	recordatorio	email	Recordatorio: tu cita el 30/11/2026 a las 10:15	Hola Pedro:\n\nTe recordamos tu cita podológica el 30/11/2026 a las 10:15.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Camila Rojas\n\nLugar:\nConsulta podológica	2026-11-28 10:15:00-03	pendiente	\N	0		2026-11-25 00:34:58.261394-03	38b70b4f-5d7d-4676-b844-d53758e7797f	926ee2d7-1575-4b18-9db6-367e2533fb11
+90e2b5d7-3752-4623-b8fc-6bdd33c386ac	reserva	email	Cita confirmada el 01/12/2026 a las 11:30	Hola Ana:\n\nTu cita podológica quedó confirmada el 01/12/2026 a las 11:30.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Camila Rojas\n\nLugar:\nConsulta podológica	2026-11-25 00:34:58.280964-03	pendiente	\N	0		2026-11-25 00:34:58.28112-03	ef7db830-17b0-4f36-8ee8-b630d485ad73	cfd9381d-db9c-47eb-884b-6e92b6666b65
+94d3b0ba-2233-4c14-96d1-d0a86b33e943	recordatorio	email	Recordatorio: tu cita el 01/12/2026 a las 11:30	Hola Ana:\n\nTe recordamos tu cita podológica el 01/12/2026 a las 11:30.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Camila Rojas\n\nLugar:\nConsulta podológica	2026-11-29 11:30:00-03	pendiente	\N	0		2026-11-25 00:34:58.281607-03	ef7db830-17b0-4f36-8ee8-b630d485ad73	cfd9381d-db9c-47eb-884b-6e92b6666b65
+fb7de393-29e6-42f3-a44a-cca8d55dcbfa	reserva	email	Cita confirmada el 02/12/2026 a las 14:00	Hola Luis:\n\nTu cita podológica quedó confirmada el 02/12/2026 a las 14:00.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Camila Rojas\n\nLugar:\nConsulta podológica	2026-11-25 00:34:58.29795-03	pendiente	\N	0		2026-11-25 00:34:58.298111-03	992f5606-5f76-4a5d-9721-e16d74f32478	355a1a38-97ef-4c9f-85b1-46131401279e
+e909440b-ca31-46b3-b767-e1dced813c9c	recordatorio	email	Recordatorio: tu cita el 02/12/2026 a las 14:00	Hola Luis:\n\nTe recordamos tu cita podológica el 02/12/2026 a las 14:00.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Camila Rojas\n\nLugar:\nConsulta podológica	2026-11-30 14:00:00-03	pendiente	\N	0		2026-11-25 00:34:58.298883-03	992f5606-5f76-4a5d-9721-e16d74f32478	355a1a38-97ef-4c9f-85b1-46131401279e
+d022d15f-6aca-4282-9f29-745c5f0d67e1	reserva	email	Cita confirmada el 27/11/2026 a las 09:00	Hola Luis:\n\nTu cita podológica quedó confirmada el 27/11/2026 a las 09:00.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Tomás Fuentes\n\nLugar:\nConsulta podológica	2026-11-25 00:34:58.319468-03	pendiente	\N	0		2026-11-25 00:34:58.319655-03	fba19f0b-0e6a-460a-9a10-31f6e92cf206	355a1a38-97ef-4c9f-85b1-46131401279e
+592e8865-47eb-4cf7-89d3-cee0d37e07d0	recordatorio	email	Recordatorio: tu cita el 27/11/2026 a las 09:00	Hola Luis:\n\nTe recordamos tu cita podológica el 27/11/2026 a las 09:00.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Tomás Fuentes\n\nLugar:\nConsulta podológica	2026-11-25 09:00:00-03	pendiente	\N	0		2026-11-25 00:34:58.320332-03	fba19f0b-0e6a-460a-9a10-31f6e92cf206	355a1a38-97ef-4c9f-85b1-46131401279e
+a59d622d-7afe-4591-804c-eabc071d402d	reserva	email	Cita confirmada el 30/11/2026 a las 10:15	Hola Carmen:\n\nTu cita podológica quedó confirmada el 30/11/2026 a las 10:15.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Tomás Fuentes\n\nLugar:\nConsulta podológica	2026-11-25 00:34:58.337922-03	pendiente	\N	0		2026-11-25 00:34:58.338072-03	f26414cd-e39d-4e8e-bbb3-919c6939a4a8	f8dae367-05d4-461c-8e5b-da0374c47bc2
+050d1c61-571f-4a1a-9628-f2f6fe43e04a	recordatorio	email	Recordatorio: tu cita el 30/11/2026 a las 10:15	Hola Carmen:\n\nTe recordamos tu cita podológica el 30/11/2026 a las 10:15.\n\nPuedes cancelar o reagendar desde la aplicación hasta 24 horas antes.\n\nProfesional: Tomás Fuentes\n\nLugar:\nConsulta podológica	2026-11-28 10:15:00-03	pendiente	\N	0		2026-11-25 00:34:58.338732-03	f26414cd-e39d-4e8e-bbb3-919c6939a4a8	f8dae367-05d4-461c-8e5b-da0374c47bc2
+\.
+
+
+--
+-- Data for Name: agenda_tratamiento; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.agenda_tratamiento (id, nombre, descripcion, duracion_min, precio, activo, descripcion_detallada) FROM stdin;
+503ce96e-312d-4705-8e09-b0db73b5aa78	Podología básica	Corte y limado de uñas, manejo de callosidades y control.	45	20000	t	Esta atención está pensada para quienes necesitan ayuda con el corte de uñas, tienen durezas que molestan al caminar o buscan un cuidado periódico de sus pies. Primero conversamos sobre tus molestias y revisamos la piel, las uñas y las zonas donde el zapato suele apretar o rozar.\n\nSegún lo que encontremos, cortamos y limamos las uñas y rebajamos las callosidades que se puedan tratar en la consulta. Al terminar te orientamos sobre cómo cuidar la piel, elegir calzado con espacio para los dedos y evitar cortar las durezas en casa.
+0f5e9fb2-fbab-4cc4-b83f-235c6d478cf2	Uña encarnada	Tratamiento de uña encarnada y cuidado posterior.	30	25000	t	Esta atención está pensada para quienes sienten presión o molestia porque un borde de la uña se clava en la piel. Primero revisamos la uña y el dedo, y conversamos sobre cuándo empezó la molestia, cómo cortas tus uñas y qué calzado usas habitualmente.\n\nSi se puede manejar en la consulta, limpiamos la zona y tratamos con cuidado el borde que presiona la piel. Al terminar te explicamos cómo cuidar el dedo, qué calzado puede ayudar a evitar el roce y cuándo volver a control. Si vemos signos de infección, te orientamos para que consultes a un médico.
+a77cfb1e-3e5b-48f0-a44c-cafb587d7bc3	Tratamiento de hongos	Limpieza y tratamiento de uñas con hongos.	45	30000	t	Esta atención está pensada para quienes han notado que una uña cambió de color, se engrosó o se quiebra con facilidad. Primero revisamos las uñas y la piel alrededor, y conversamos sobre cuánto tiempo llevan esos cambios y qué cuidados has probado.\n\nCuando corresponde, limpiamos la uña y rebajamos su grosor para facilitar el cuidado. El seguimiento puede requerir varias sesiones. Si hay un compromiso importante de las uñas, te derivamos al médico para evaluación. Al terminar conversamos sobre cómo secar bien los pies, cambiar los calcetines húmedos y evitar compartir el cortaúñas.
+52181d3e-1b01-4f79-92c1-5bb4fbe1eae3	Control de pie sensible	Revisión y cuidado preventivo del pie.	60	35000	t	Este control preventivo está pensado para personas con diabetes, problemas de circulación o cambios en la sensibilidad de los pies. Primero conversamos sobre tus antecedentes y revisamos la piel, las uñas y las zonas de presión. También revisamos cómo percibes el tacto en distintas partes del pie.\n\nSegún la revisión, realizamos los cuidados de uñas y piel que sean apropiados para ti. Al terminar te mostramos cómo revisar tus pies a diario y en qué fijarte al elegir calzado. Si encontramos una herida u otro cambio que requiera evaluación médica, te orientamos para consultar a tu equipo de salud.
+\.
+
+
+--
+-- Data for Name: auditoria_registroauditoria; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.auditoria_registroauditoria (id, accion, recurso_tipo, recurso_id, ip, detalle, fecha, usuario_id) FROM stdin;
+1ec5e276-cfba-402f-809a-0f015234d762	registro	usuario	fb274a47-fb14-47e1-b3f3-f2c564a4ee91	\N	{}	2026-11-25 00:34:56.589731-03	fb274a47-fb14-47e1-b3f3-f2c564a4ee91
+d9c7ae05-c97a-4297-8818-16b9b0a089ed	aceptar_consentimiento	consentimiento	445628c4-7cbc-49b8-9efb-452f7693d10a	\N	{"tipo": "tratamiento_datos", "version": "v1"}	2026-11-25 00:34:56.595036-03	fb274a47-fb14-47e1-b3f3-f2c564a4ee91
+8039d64b-1f2e-4c15-8ae5-51e75c438bff	registro	usuario	926ee2d7-1575-4b18-9db6-367e2533fb11	\N	{}	2026-11-25 00:34:56.656528-03	926ee2d7-1575-4b18-9db6-367e2533fb11
+032abb5d-3124-4158-8d69-77b2798c6a1c	aceptar_consentimiento	consentimiento	32988506-b22a-4a49-bac3-aa8fad06a921	\N	{"tipo": "tratamiento_datos", "version": "v1"}	2026-11-25 00:34:56.659063-03	926ee2d7-1575-4b18-9db6-367e2533fb11
+deb17651-55aa-41ab-aab6-554706394f7b	registro	usuario	cfd9381d-db9c-47eb-884b-6e92b6666b65	\N	{}	2026-11-25 00:34:56.713408-03	cfd9381d-db9c-47eb-884b-6e92b6666b65
+c6016567-8844-421b-8953-0c0efe8a1019	aceptar_consentimiento	consentimiento	dc40d7e3-fba4-45e1-861f-68afcf77d867	\N	{"tipo": "tratamiento_datos", "version": "v1"}	2026-11-25 00:34:56.716208-03	cfd9381d-db9c-47eb-884b-6e92b6666b65
+c2860da4-d698-42d0-ad08-5c3365e5b3ea	registro	usuario	355a1a38-97ef-4c9f-85b1-46131401279e	\N	{}	2026-11-25 00:34:56.776937-03	355a1a38-97ef-4c9f-85b1-46131401279e
+844ffe55-7209-46db-a5ae-cb64471dfc11	aceptar_consentimiento	consentimiento	7645ac3c-fd49-4880-993e-1a2732ab6d64	\N	{"tipo": "tratamiento_datos", "version": "v1"}	2026-11-25 00:34:56.77913-03	355a1a38-97ef-4c9f-85b1-46131401279e
+42e71a0e-eba4-4ce2-ac02-2fef6c8f4905	registro	usuario	f8dae367-05d4-461c-8e5b-da0374c47bc2	\N	{}	2026-11-25 00:34:56.833768-03	f8dae367-05d4-461c-8e5b-da0374c47bc2
+6f7a1e58-5f86-40a6-98be-9d769fa709c2	aceptar_consentimiento	consentimiento	d2d33399-a077-4409-a952-a33748d28d2d	\N	{"tipo": "tratamiento_datos", "version": "v1"}	2026-11-25 00:34:56.836719-03	f8dae367-05d4-461c-8e5b-da0374c47bc2
+561feda4-ec3d-4ed2-9241-47174ce14c04	crear_ficha	fichaclinica	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N	{}	2026-11-25 00:34:56.845238-03	0609d85f-d93f-40fa-b242-ca8639315999
+2d8164b8-f43d-4422-a489-b1584966dd9f	crear_atencion	atencionclinica	95670c35-fe12-4bcb-8de9-b237b05ad468	\N	{}	2026-11-25 00:34:56.856709-03	0609d85f-d93f-40fa-b242-ca8639315999
+0cfb4e8c-33cd-4921-8fbf-8ac8e3f4b93d	crear_ficha	fichaclinica	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N	{}	2026-11-25 00:34:56.863397-03	0609d85f-d93f-40fa-b242-ca8639315999
+34295da3-ba3b-405c-97e7-c75f20124bbb	crear_atencion	atencionclinica	f411542e-a827-4432-af2e-a1089aefb8ee	\N	{}	2026-11-25 00:34:56.874721-03	0609d85f-d93f-40fa-b242-ca8639315999
+77f0c736-e9d4-4481-ab36-60312bd2195a	crear_atencion	atencionclinica	13a330bd-4fc5-4d80-8a12-c6ee7326fdd5	\N	{}	2026-11-25 00:34:56.88136-03	52fe51c4-557f-4319-a459-1c5a9581f577
+a4ef36c0-6607-4bf8-9f51-ee9e822f28f8	crear_ficha	fichaclinica	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N	{}	2026-11-25 00:34:56.888504-03	52fe51c4-557f-4319-a459-1c5a9581f577
+b3ecd9c6-fccc-4cf6-bdff-3f18f8a077d9	crear_atencion	atencionclinica	8b0bfb49-57d5-414d-b343-c6f8e3dda57c	\N	{}	2026-11-25 00:34:56.89794-03	52fe51c4-557f-4319-a459-1c5a9581f577
+8729f58a-acad-43b8-9dc2-24936def1cc6	crear_atencion	atencionclinica	baae2eae-1103-4695-8526-2fdabd7f9c7c	\N	{}	2026-11-25 00:34:56.911373-03	52fe51c4-557f-4319-a459-1c5a9581f577
+6f29f709-d66e-42de-aadd-80384338b7ad	crear_ficha	fichaclinica	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N	{}	2026-11-25 00:34:56.916298-03	52fe51c4-557f-4319-a459-1c5a9581f577
+e0080278-756d-4d48-927c-f863267b06f8	crear_atencion	atencionclinica	48419488-72c9-451e-ad2d-fb43721a71d4	\N	{}	2026-11-25 00:34:56.927842-03	52fe51c4-557f-4319-a459-1c5a9581f577
+c1d04cec-d554-4dca-b4f1-51f76f6232b5	crear_atencion	atencionclinica	0666c72a-ec18-4c7b-b9ec-901a3624e9f2	\N	{}	2026-11-25 00:34:56.93714-03	52fe51c4-557f-4319-a459-1c5a9581f577
+2cce668f-c565-4438-9caf-c00fa167271d	crear_atencion	atencionclinica	fa2aeed6-2393-46bf-9ce1-fd8ff1e4cf70	\N	{}	2026-11-25 00:34:56.948151-03	0609d85f-d93f-40fa-b242-ca8639315999
+e209675c-ce7e-412a-8b14-2e4a3acc7608	crear_atencion	atencionclinica	88770acc-a10a-4e64-a75b-e721aeac10c3	\N	{}	2026-11-25 00:34:56.96084-03	0609d85f-d93f-40fa-b242-ca8639315999
+0facb6e1-4da4-4e51-9fe2-1fd1b5189881	crear_atencion	atencionclinica	04a44d77-1e3a-4479-9946-962ff185dd2c	\N	{}	2026-11-25 00:34:56.969081-03	52fe51c4-557f-4319-a459-1c5a9581f577
+f32b1648-b5f3-4cec-9484-ff3c2353d514	crear_atencion	atencionclinica	4a257872-e786-48d0-be00-0932c1fb2d6b	\N	{}	2026-11-25 00:34:56.97588-03	0609d85f-d93f-40fa-b242-ca8639315999
+764dc1ba-6a63-47a3-add3-ce0f25a234bb	crear_atencion	atencionclinica	7a1f97f0-5be4-4e6a-8324-92fb2019eb7b	\N	{}	2026-11-25 00:34:56.984233-03	52fe51c4-557f-4319-a459-1c5a9581f577
+a09c583e-7281-4173-ab90-374f321fc15d	crear_atencion	atencionclinica	73371161-4c5b-44e1-997b-ec88b5e1316c	\N	{}	2026-11-25 00:34:56.995669-03	52fe51c4-557f-4319-a459-1c5a9581f577
+0c40c185-edfc-438b-8874-317177837e80	crear_atencion	atencionclinica	73a856f8-5ab2-42df-b9d1-f1e1e2209793	\N	{}	2026-11-25 00:34:57.00943-03	52fe51c4-557f-4319-a459-1c5a9581f577
+a3f8aef8-a8e8-45b2-9746-c584fcdf551e	crear_atencion	atencionclinica	69a52b62-358c-4972-be86-616b5e279f33	\N	{}	2026-11-25 00:34:57.019922-03	52fe51c4-557f-4319-a459-1c5a9581f577
+673c5e4b-3484-4ab8-8667-6f1f3938c60d	crear_atencion	atencionclinica	b4d54132-8399-466c-b440-d60cf32697e5	\N	{}	2026-11-25 00:34:57.030802-03	0609d85f-d93f-40fa-b242-ca8639315999
+41092e19-d9c0-46b5-bfa3-ecbd55d1f852	crear_ficha	fichaclinica	b62bc836-6082-4990-929f-77e33b5c8ad0	\N	{}	2026-11-25 00:34:57.037931-03	52fe51c4-557f-4319-a459-1c5a9581f577
+7b8aa80e-5e0a-4029-bd80-7ee5bf15a3a8	crear_atencion	atencionclinica	ef3c7171-e29f-4f5d-980c-194c677daa16	\N	{}	2026-11-25 00:34:57.045305-03	52fe51c4-557f-4319-a459-1c5a9581f577
+c4e6c705-4a83-48eb-a337-6fd7f660ab5e	crear_atencion	atencionclinica	6f763397-47a9-441e-8d26-59c1a4ff1770	\N	{}	2026-11-25 00:34:57.052342-03	52fe51c4-557f-4319-a459-1c5a9581f577
+86d33abc-d1d5-45f5-8b62-47555d81a8b9	crear_atencion	atencionclinica	3a098221-4aa7-4a50-ac60-ceda88a9500d	\N	{}	2026-11-25 00:34:57.062953-03	52fe51c4-557f-4319-a459-1c5a9581f577
+e6d8cb2e-1420-431b-90ef-678863006c19	crear_atencion	atencionclinica	e60ce974-3700-4ead-bf86-de4e2db085b1	\N	{}	2026-11-25 00:34:57.076083-03	52fe51c4-557f-4319-a459-1c5a9581f577
+07363a71-d83a-4076-b989-f47838f4699b	crear_atencion	atencionclinica	bfb4fd38-13b0-4c77-997a-d3980f17e6a5	\N	{}	2026-11-25 00:34:57.085369-03	52fe51c4-557f-4319-a459-1c5a9581f577
+06d41765-80b6-4c9e-a262-14a34b90484a	crear_atencion	atencionclinica	78633271-5951-4c41-982a-6c2a5b61bd80	\N	{}	2026-11-25 00:34:57.096292-03	52fe51c4-557f-4319-a459-1c5a9581f577
+f80afd00-e22e-4a51-ac7e-447584a6653a	crear_atencion	atencionclinica	2104d552-83dd-4424-83b1-84ac34f1aff1	\N	{}	2026-11-25 00:34:57.107117-03	0609d85f-d93f-40fa-b242-ca8639315999
+0a4f142d-c20f-4e49-abb4-34f65bfc91c5	crear_atencion	atencionclinica	84b3a033-5d96-4550-a4e4-080519db76cd	\N	{}	2026-11-25 00:34:57.114943-03	52fe51c4-557f-4319-a459-1c5a9581f577
+5186596b-7c41-43f0-bf66-fe06613d56ec	crear_atencion	atencionclinica	e53fa538-5ddc-41c9-af4d-dffe565e31f2	\N	{}	2026-11-25 00:34:57.122645-03	52fe51c4-557f-4319-a459-1c5a9581f577
+932a3324-5194-4a07-be21-690461fa5296	crear_atencion	atencionclinica	6c44e891-1687-486f-98d7-02fe2ef3425e	\N	{}	2026-11-25 00:34:57.135504-03	52fe51c4-557f-4319-a459-1c5a9581f577
+0566c875-11fb-40e7-8297-1510a0562eb8	crear_atencion	atencionclinica	a61e320c-cedb-4fbb-bb98-37cc8fc6d441	\N	{}	2026-11-25 00:34:57.146547-03	0609d85f-d93f-40fa-b242-ca8639315999
+62766d66-6e67-42e5-b454-d787726842bc	crear_atencion	atencionclinica	e382f730-f590-4f76-8bda-b550cb9230ac	\N	{}	2026-11-25 00:34:57.156961-03	52fe51c4-557f-4319-a459-1c5a9581f577
+7ddd0f64-5298-4986-83e3-02689347a1f4	crear_atencion	atencionclinica	7b0cbc31-a4ff-4de1-9d12-6a846b2ac211	\N	{}	2026-11-25 00:34:57.173934-03	52fe51c4-557f-4319-a459-1c5a9581f577
+d003f096-ef51-4516-a69d-592bcba83cb3	crear_atencion	atencionclinica	22142607-8483-4ad4-82bc-2e15f4ed3d0f	\N	{}	2026-11-25 00:34:57.184546-03	52fe51c4-557f-4319-a459-1c5a9581f577
+cff5027c-b9ba-4947-8d6d-8a14141d9c25	crear_atencion	atencionclinica	3149e3dd-4630-49d9-ba1f-3c7051b104fd	\N	{}	2026-11-25 00:34:57.19212-03	0609d85f-d93f-40fa-b242-ca8639315999
+d30a1dcc-ac7d-44d1-9c24-b76d5a729be8	crear_atencion	atencionclinica	fd5a4307-40e3-4e3f-b7c2-d1e3e1f1717d	\N	{}	2026-11-25 00:34:57.201432-03	52fe51c4-557f-4319-a459-1c5a9581f577
+23d85ddd-8589-4ec2-9d3d-df186a8c1481	crear_atencion	atencionclinica	e23babec-c000-4f9d-a348-7468e466b0e4	\N	{}	2026-11-25 00:34:57.209309-03	52fe51c4-557f-4319-a459-1c5a9581f577
+b3527ddf-a3d8-4586-ac6e-644978e59c4a	crear_atencion	atencionclinica	e49c6e7b-8558-44e3-85f1-b319489c5d24	\N	{}	2026-11-25 00:34:57.217447-03	52fe51c4-557f-4319-a459-1c5a9581f577
+d3ccd9d4-f449-432d-b6ad-3e012411ae4e	crear_atencion	atencionclinica	bc1047fe-3b41-40fe-b92e-1a98d747b3e8	\N	{}	2026-11-25 00:34:57.225379-03	0609d85f-d93f-40fa-b242-ca8639315999
+62aca171-8ef6-45c9-ae0e-5f29f9c125cc	crear_atencion	atencionclinica	93bf180a-ae51-4010-b7b1-f97ace12c8d5	\N	{}	2026-11-25 00:34:57.238177-03	52fe51c4-557f-4319-a459-1c5a9581f577
+71583a00-e855-4fbc-af4f-bf56e9756e28	crear_atencion	atencionclinica	85700e2b-8aa1-468c-904e-5b1c986bd48a	\N	{}	2026-11-25 00:34:57.246825-03	52fe51c4-557f-4319-a459-1c5a9581f577
+7f65690c-8b0b-4ce4-b2ab-7b2efaf006f2	crear_atencion	atencionclinica	bd9f8cb1-5f9f-4b9b-bcf8-01078562f481	\N	{}	2026-11-25 00:34:57.257211-03	0609d85f-d93f-40fa-b242-ca8639315999
+7689b869-1bdb-4988-bd63-a7a356e065ba	crear_atencion	atencionclinica	3b4079e5-763a-464d-a940-5f3928f67438	\N	{}	2026-11-25 00:34:57.266255-03	0609d85f-d93f-40fa-b242-ca8639315999
+2c2c96ab-76c9-4744-8e13-8ac6649f56bc	crear_atencion	atencionclinica	92fa3a87-2223-4c60-9de8-4b9a09087f7a	\N	{}	2026-11-25 00:34:57.276842-03	52fe51c4-557f-4319-a459-1c5a9581f577
+840a5e5a-1a76-48c0-a0db-df562370888e	crear_atencion	atencionclinica	c64db89d-9534-4004-b628-956cb414bf21	\N	{}	2026-11-25 00:34:57.2851-03	52fe51c4-557f-4319-a459-1c5a9581f577
+de47abc7-dd12-479b-a405-5377378d687b	crear_atencion	atencionclinica	e60784d2-bb88-4404-9e6c-3fa2aeaaa7e1	\N	{}	2026-11-25 00:34:57.293481-03	0609d85f-d93f-40fa-b242-ca8639315999
+bf8cb09e-df95-4564-8de5-7cb052e15d0f	crear_atencion	atencionclinica	c0373e13-4bef-4f1e-9be4-e8211b7b9357	\N	{}	2026-11-25 00:34:57.307459-03	52fe51c4-557f-4319-a459-1c5a9581f577
+9d987c91-f2eb-4a5a-965d-338702f87dd0	crear_atencion	atencionclinica	4b4c2b33-bf05-416e-985c-a72f95a86641	\N	{}	2026-11-25 00:34:57.314603-03	52fe51c4-557f-4319-a459-1c5a9581f577
+b27a92ef-8953-496e-9cc9-d81c5f6d9745	crear_atencion	atencionclinica	20971faf-d054-468f-8f81-3271f9d9bd57	\N	{}	2026-11-25 00:34:57.32046-03	0609d85f-d93f-40fa-b242-ca8639315999
+893e4b69-4df9-469d-bea1-e170393ef6cb	crear_atencion	atencionclinica	1f4ed662-4b40-46ac-a93a-b1c2fd67a69a	\N	{}	2026-11-25 00:34:57.331038-03	52fe51c4-557f-4319-a459-1c5a9581f577
+79597e1a-e5ff-49f0-98ce-5810a72a5f45	crear_atencion	atencionclinica	5dab88ca-6b3c-48ea-99db-96e3cc33c920	\N	{}	2026-11-25 00:34:57.345703-03	52fe51c4-557f-4319-a459-1c5a9581f577
+b61d8be2-805a-4934-82fd-3ada2b4846d7	crear_atencion	atencionclinica	0fa6f2a4-478b-4c34-83e2-a57f3f3573e4	\N	{}	2026-11-25 00:34:57.351888-03	0609d85f-d93f-40fa-b242-ca8639315999
+1a9a209a-71a6-4807-a9b5-db56d1dd87c8	crear_atencion	atencionclinica	bb535616-91d1-440f-b53d-5fe53f615976	\N	{}	2026-11-25 00:34:57.358341-03	52fe51c4-557f-4319-a459-1c5a9581f577
+ff18231a-bece-4346-9a94-cf68267438a3	crear_atencion	atencionclinica	b07f8a59-54b3-4f0a-9911-b9173452a91f	\N	{}	2026-11-25 00:34:57.374438-03	0609d85f-d93f-40fa-b242-ca8639315999
+99aca6d8-9669-4ff6-8685-ecbda6eaf791	crear_atencion	atencionclinica	05274648-f637-4307-bd8d-7827a81e40a2	\N	{}	2026-11-25 00:34:57.382012-03	52fe51c4-557f-4319-a459-1c5a9581f577
+225ed62f-e0a2-44ee-92cd-d009aac16eca	crear_atencion	atencionclinica	070a1361-6ca3-4457-ad1b-7160acb6d57a	\N	{}	2026-11-25 00:34:57.388199-03	0609d85f-d93f-40fa-b242-ca8639315999
+71188fff-060b-4b89-9e87-5dfef82c032b	crear_atencion	atencionclinica	3621da52-e930-47c1-8626-07e24c710f54	\N	{}	2026-11-25 00:34:57.399739-03	52fe51c4-557f-4319-a459-1c5a9581f577
+ff614358-38f5-4066-9fcd-e1f1116ae3b7	crear_atencion	atencionclinica	caed3026-9212-41e3-8ee8-72ccf45ffcd9	\N	{}	2026-11-25 00:34:57.409739-03	52fe51c4-557f-4319-a459-1c5a9581f577
+9d992a07-fb4d-4e7d-ab79-9dd9c068a2d1	crear_atencion	atencionclinica	991867b9-bb8e-4cc3-8ca9-595f83a03a76	\N	{}	2026-11-25 00:34:57.417653-03	52fe51c4-557f-4319-a459-1c5a9581f577
+af1fc8ba-a544-4f85-bef9-0329cef3e166	crear_atencion	atencionclinica	1947b3aa-c4af-419d-87cf-2d578e809f88	\N	{}	2026-11-25 00:34:57.426135-03	0609d85f-d93f-40fa-b242-ca8639315999
+24ec0242-8334-45bc-9acb-aed7f97caaa1	crear_atencion	atencionclinica	e871bbb0-f2e2-4d84-9cfb-4f85759c8b30	\N	{}	2026-11-25 00:34:57.432601-03	0609d85f-d93f-40fa-b242-ca8639315999
+1ce272ce-b058-42a2-9cea-a92c8e2932b1	crear_atencion	atencionclinica	38cfc8ff-7fac-4e53-873c-acbdc27651c3	\N	{}	2026-11-25 00:34:57.440862-03	52fe51c4-557f-4319-a459-1c5a9581f577
+38ec12df-f318-4348-899b-75950558d8ee	crear_atencion	atencionclinica	682e5a1a-c8f3-4406-b0fe-f1ba64b2b875	\N	{}	2026-11-25 00:34:57.45183-03	52fe51c4-557f-4319-a459-1c5a9581f577
+c807045b-02fb-4b91-9f19-5aec83ceffc5	crear_atencion	atencionclinica	8973ad0e-cb88-4402-9267-dfb07cde4a5b	\N	{}	2026-11-25 00:34:57.460934-03	0609d85f-d93f-40fa-b242-ca8639315999
+b4b6aec9-9aaf-4378-a275-f456b95ece10	crear_atencion	atencionclinica	4dc744e6-d34a-497d-abe5-76ac78c3e822	\N	{}	2026-11-25 00:34:57.470418-03	0609d85f-d93f-40fa-b242-ca8639315999
+4705249b-dc8c-4e85-93c8-99ad18210bb7	crear_atencion	atencionclinica	65475539-e763-44d2-bdf2-9f72a793dc73	\N	{}	2026-11-25 00:34:57.483988-03	52fe51c4-557f-4319-a459-1c5a9581f577
+925d10c3-9fc7-4f19-9a14-17bf0958c410	crear_atencion	atencionclinica	d3c67331-5707-4e08-a19c-7013bf604d80	\N	{}	2026-11-25 00:34:57.49033-03	52fe51c4-557f-4319-a459-1c5a9581f577
+99198106-75e4-4f9c-8cd3-a4f6569328c7	crear_atencion	atencionclinica	3aa7d814-3bf2-4ebb-b43d-df423d9483b0	\N	{}	2026-11-25 00:34:57.49691-03	52fe51c4-557f-4319-a459-1c5a9581f577
+e6f46f8b-b1ca-45e2-ba47-9a470465047d	crear_atencion	atencionclinica	7adb9387-e118-4d36-b5b9-87dc553e7154	\N	{}	2026-11-25 00:34:57.503578-03	0609d85f-d93f-40fa-b242-ca8639315999
+3cb28d78-f50b-4fa2-82d1-1000a25e8290	crear_atencion	atencionclinica	bf84e59d-7781-4ded-9bfe-50b3cbb44917	\N	{}	2026-11-25 00:34:57.513045-03	0609d85f-d93f-40fa-b242-ca8639315999
+091bd9a5-12c3-4815-a259-87bae0a31461	crear_atencion	atencionclinica	dd057464-e44c-4de7-b28f-112a7d9b6a09	\N	{}	2026-11-25 00:34:57.523338-03	52fe51c4-557f-4319-a459-1c5a9581f577
+d54806dd-0975-4c96-8c8b-9a9b4bad0b39	crear_atencion	atencionclinica	e0d7717a-760e-4a22-ac1c-dbd27eda6744	\N	{}	2026-11-25 00:34:57.535023-03	52fe51c4-557f-4319-a459-1c5a9581f577
+bf864e8f-bbce-47e1-bf9c-9a4185bbcd4e	crear_atencion	atencionclinica	73ba3990-f852-49f1-945b-904537eb454d	\N	{}	2026-11-25 00:34:57.544613-03	0609d85f-d93f-40fa-b242-ca8639315999
+969afffb-ec71-44a0-bd88-5b76471e4388	crear_atencion	atencionclinica	c1d081af-cbe3-4527-82af-9debc254fdf6	\N	{}	2026-11-25 00:34:57.555032-03	52fe51c4-557f-4319-a459-1c5a9581f577
+dde6e038-6f2e-4236-a527-3ccf2b60d638	crear_atencion	atencionclinica	3eebc98a-3f94-4b13-9ada-5fcac7ba2372	\N	{}	2026-11-25 00:34:57.563207-03	52fe51c4-557f-4319-a459-1c5a9581f577
+b5743fe9-e19f-40a5-b321-204eb8e6db61	crear_atencion	atencionclinica	cf59370c-d3c1-40de-8af9-7d9835aff5f0	\N	{}	2026-11-25 00:34:57.574695-03	0609d85f-d93f-40fa-b242-ca8639315999
+315f0347-51bc-4c8c-a6bb-1b164fe06327	crear_atencion	atencionclinica	ee5b5b8d-a5b7-49df-a1f0-2b3b961b78d5	\N	{}	2026-11-25 00:34:57.583693-03	0609d85f-d93f-40fa-b242-ca8639315999
+fc0d0dad-994f-4f7f-aeb0-d52905f358a3	crear_atencion	atencionclinica	dc0b55c6-f6bb-4208-87ca-88627d7b5851	\N	{}	2026-11-25 00:34:57.593066-03	52fe51c4-557f-4319-a459-1c5a9581f577
+f55eb0ee-2ee7-40f0-8207-f91cdac6e967	crear_atencion	atencionclinica	b3d4c832-0bb2-4e09-a38b-ea48f46e63fc	\N	{}	2026-11-25 00:34:57.601548-03	0609d85f-d93f-40fa-b242-ca8639315999
+7a9f2e1a-0e29-45de-8f02-bc1e80eec574	crear_atencion	atencionclinica	69db43d9-0fb4-4aaf-9d65-0a5ebf288464	\N	{}	2026-11-25 00:34:57.608875-03	0609d85f-d93f-40fa-b242-ca8639315999
+8b7712cb-8ed0-4abd-a43a-08fd52692a0e	crear_atencion	atencionclinica	f817091a-a992-42b2-a92c-ec714c657390	\N	{}	2026-11-25 00:34:57.620102-03	52fe51c4-557f-4319-a459-1c5a9581f577
+6a7c235e-f8ab-4998-8320-c0b3eaa25e73	crear_atencion	atencionclinica	26b8ffea-36cd-4333-8237-7c5ecfca3407	\N	{}	2026-11-25 00:34:57.628046-03	52fe51c4-557f-4319-a459-1c5a9581f577
+e2480ab5-e5c4-4a09-8605-1b3d2db45803	crear_atencion	atencionclinica	48916b9b-85a5-4b7d-bca6-6d8e66f2669a	\N	{}	2026-11-25 00:34:57.633607-03	52fe51c4-557f-4319-a459-1c5a9581f577
+a2c9f4e7-abf5-4762-8912-a65763158335	crear_atencion	atencionclinica	b24d037e-8ccd-4043-b621-0cfade38078d	\N	{}	2026-11-25 00:34:57.640381-03	0609d85f-d93f-40fa-b242-ca8639315999
+d004b451-b801-4343-abec-b3b1a2c475d6	crear_atencion	atencionclinica	a47cbb3a-80df-4428-9b75-3ddec5e6c9ed	\N	{}	2026-11-25 00:34:57.656461-03	52fe51c4-557f-4319-a459-1c5a9581f577
+d03119eb-8487-4a36-ba44-ca7e762965ce	crear_atencion	atencionclinica	49b5fa10-4460-4996-84e7-1cba87786aa8	\N	{}	2026-11-25 00:34:57.668397-03	52fe51c4-557f-4319-a459-1c5a9581f577
+4736103e-256e-4619-8e08-73371ffa17ec	crear_atencion	atencionclinica	ffb54507-04bd-42fa-89f4-9c2a83d05eb8	\N	{}	2026-11-25 00:34:57.677103-03	52fe51c4-557f-4319-a459-1c5a9581f577
+b462bd82-4edc-461f-bca1-d849f6f50554	crear_atencion	atencionclinica	b60086d2-610b-47be-ac92-a3ad3be50abb	\N	{}	2026-11-25 00:34:57.688065-03	0609d85f-d93f-40fa-b242-ca8639315999
+b11972cf-824c-4549-bb49-edf24abc73fa	crear_atencion	atencionclinica	92ef73cc-3fb0-4054-ae0d-b568a830c398	\N	{}	2026-11-25 00:34:57.698783-03	52fe51c4-557f-4319-a459-1c5a9581f577
+8efa00f7-d847-480e-8f97-feaa55a468a7	crear_atencion	atencionclinica	7c34d0bd-0f3c-465a-bc6d-e4fe8a996387	\N	{}	2026-11-25 00:34:57.709723-03	52fe51c4-557f-4319-a459-1c5a9581f577
+38994cc3-df24-4be7-bc42-e33588131244	crear_atencion	atencionclinica	a048015d-ffd3-4843-a0bb-f136ff0c3a0c	\N	{}	2026-11-25 00:34:57.726763-03	52fe51c4-557f-4319-a459-1c5a9581f577
+a4ffac3c-3ec7-4b7c-89ab-2cbfd8d7e430	crear_atencion	atencionclinica	a676c8fe-3ad9-4215-b0d8-d862684cec36	\N	{}	2026-11-25 00:34:57.741733-03	0609d85f-d93f-40fa-b242-ca8639315999
+aeac057d-a296-4995-8c30-0d9d249a70a9	crear_atencion	atencionclinica	bb4d4967-5155-4488-bfb6-1dc5c36b088d	\N	{}	2026-11-25 00:34:57.75113-03	0609d85f-d93f-40fa-b242-ca8639315999
+c9b4b72d-ad8d-4184-9531-c293e94d3485	crear_atencion	atencionclinica	90a1d825-99f1-49c8-85ab-afeeb7455781	\N	{}	2026-11-25 00:34:57.760979-03	52fe51c4-557f-4319-a459-1c5a9581f577
+6134ff6c-ba50-4148-9763-75101e4bb6b2	crear_atencion	atencionclinica	9d6ef23d-b8f9-461a-b7a5-169768f33935	\N	{}	2026-11-25 00:34:57.773485-03	0609d85f-d93f-40fa-b242-ca8639315999
+2e8d8aa9-5128-48bd-ad85-c2d329601f4c	crear_atencion	atencionclinica	0be39eda-1000-479c-9386-182f9a8866cf	\N	{}	2026-11-25 00:34:57.783143-03	0609d85f-d93f-40fa-b242-ca8639315999
+8789a73a-3c12-4caa-9806-1d4ffc158e94	crear_atencion	atencionclinica	a25ff193-9f60-4674-8dbd-ea42876d1d09	\N	{}	2026-11-25 00:34:57.79317-03	52fe51c4-557f-4319-a459-1c5a9581f577
+9e5c2265-3cf6-48be-b878-40f9d02fea82	crear_atencion	atencionclinica	23459a64-ef94-4aa7-9946-eb1b88e6c344	\N	{}	2026-11-25 00:34:57.809684-03	0609d85f-d93f-40fa-b242-ca8639315999
+7b8bbfe7-f6e5-44db-af3a-9e4334fa81f7	crear_atencion	atencionclinica	5cb5d3f4-bffc-46ae-b31d-3be4acab5989	\N	{}	2026-11-25 00:34:57.819742-03	0609d85f-d93f-40fa-b242-ca8639315999
+61caab44-76b3-4a3f-b347-0137a090e2bf	crear_atencion	atencionclinica	08a06074-e756-45fd-861e-6c25f464d30a	\N	{}	2026-11-25 00:34:57.830254-03	52fe51c4-557f-4319-a459-1c5a9581f577
+0a104a50-931d-4c7b-a11c-444dae3cbd14	crear_atencion	atencionclinica	a76ec921-d356-4ddb-8eae-a8d40fc9be42	\N	{}	2026-11-25 00:34:57.83625-03	0609d85f-d93f-40fa-b242-ca8639315999
+58a2849f-6400-4a87-94ec-9591a80f8cac	crear_atencion	atencionclinica	bfba9d6b-ae0f-4d6a-8401-8edddc6f778c	\N	{}	2026-11-25 00:34:57.84314-03	52fe51c4-557f-4319-a459-1c5a9581f577
+a348f746-b09c-43b4-a068-f4c106d1c4b3	crear_atencion	atencionclinica	b35546c2-b60a-4b0c-b65e-a7b3b4ff60f6	\N	{}	2026-11-25 00:34:57.850442-03	52fe51c4-557f-4319-a459-1c5a9581f577
+411b00af-5018-4733-adef-a1be891a4aa0	crear_atencion	atencionclinica	dc5cd7a5-474d-4182-b913-e708b58da832	\N	{}	2026-11-25 00:34:57.85899-03	52fe51c4-557f-4319-a459-1c5a9581f577
+67f2dc5e-5764-44b5-b0d7-3c902fc85295	crear_atencion	atencionclinica	540cf354-9b76-4463-8005-21a861d54dfa	\N	{}	2026-11-25 00:34:57.869282-03	0609d85f-d93f-40fa-b242-ca8639315999
+8a1701a5-7d1b-4a80-9c68-6ef6170f33d2	crear_atencion	atencionclinica	0d3b69a0-e179-4743-a743-f9e81d71bbb5	\N	{}	2026-11-25 00:34:57.877424-03	52fe51c4-557f-4319-a459-1c5a9581f577
+07af082e-3ef9-4a54-8e03-fda05c925c54	crear_atencion	atencionclinica	4da84d4c-634b-44a9-a408-5ead34efe7a4	\N	{}	2026-11-25 00:34:57.893186-03	0609d85f-d93f-40fa-b242-ca8639315999
+e5e3373b-282a-4f14-92e6-71987e2e5e6d	crear_atencion	atencionclinica	898f74d7-15ef-44d9-81d3-f9fdc9e6b481	\N	{}	2026-11-25 00:34:57.902844-03	52fe51c4-557f-4319-a459-1c5a9581f577
+9cf867e9-175f-4fe2-9188-d4da8f0df6fa	crear_atencion	atencionclinica	9cea6027-cafb-4d09-bf5e-d23b222b8027	\N	{}	2026-11-25 00:34:57.911031-03	52fe51c4-557f-4319-a459-1c5a9581f577
+f81018c2-0b67-48a2-b8fa-cbc61d718430	crear_atencion	atencionclinica	6cefae78-dc6f-41ca-9ed2-6a1d91f74738	\N	{}	2026-11-25 00:34:57.919005-03	0609d85f-d93f-40fa-b242-ca8639315999
+e7d1435f-89e9-4c9a-af12-7d864ecf1630	crear_atencion	atencionclinica	ecdedb12-2075-41b3-9cf9-9ca13c9700e5	\N	{}	2026-11-25 00:34:57.932126-03	0609d85f-d93f-40fa-b242-ca8639315999
+39363fd3-722b-470a-9eaa-d99bed2cb07d	crear_atencion	atencionclinica	8b1e9a11-25c5-4d47-8919-d3e93dc36fcd	\N	{}	2026-11-25 00:34:57.938651-03	52fe51c4-557f-4319-a459-1c5a9581f577
+4c5ccae9-309d-4b2d-9bf9-b049eac1bf66	crear_atencion	atencionclinica	1d18d6cf-7bd6-40a7-8bac-3008842b5040	\N	{}	2026-11-25 00:34:57.94455-03	0609d85f-d93f-40fa-b242-ca8639315999
+ef4dbcf6-6962-44c0-8a81-9902a7b6d22e	crear_atencion	atencionclinica	adbcfc41-466d-409e-94c0-7ee2ad53162c	\N	{}	2026-11-25 00:34:57.954332-03	52fe51c4-557f-4319-a459-1c5a9581f577
+2510b2a9-b58d-451c-b557-5c6e5770c839	crear_atencion	atencionclinica	8e3d10ba-d2cd-4210-bcfd-e76e0a076279	\N	{}	2026-11-25 00:34:57.967895-03	0609d85f-d93f-40fa-b242-ca8639315999
+0646da53-7d0b-4510-8df2-193930ecdc86	crear_atencion	atencionclinica	3912678b-99b6-46ea-824e-5e9ebc9245f6	\N	{}	2026-11-25 00:34:57.978071-03	52fe51c4-557f-4319-a459-1c5a9581f577
+ab886016-aac2-4901-85c2-88350ed5fd1b	crear_atencion	atencionclinica	02468245-5471-423e-b95c-7a133efb0b16	\N	{}	2026-11-25 00:34:57.98773-03	0609d85f-d93f-40fa-b242-ca8639315999
+0c50ab3e-a56d-4f72-a26f-4e5fcb641c0f	crear_atencion	atencionclinica	78a565f5-4bfe-4d2c-8b1b-6784cab17a21	\N	{}	2026-11-25 00:34:57.999452-03	0609d85f-d93f-40fa-b242-ca8639315999
+1b2cb0b1-307c-45d5-8a40-4c2e98b514ad	crear_atencion	atencionclinica	3849ca15-6555-4a4f-81a8-828e427c0ce6	\N	{}	2026-11-25 00:34:58.009095-03	52fe51c4-557f-4319-a459-1c5a9581f577
+08c57e96-ec3e-420e-ba4c-1776d67a6dc8	crear_atencion	atencionclinica	e1ca39b8-4854-4318-95af-9b94435d6205	\N	{}	2026-11-25 00:34:58.018148-03	52fe51c4-557f-4319-a459-1c5a9581f577
+4b263dbd-fd77-4a85-b5d3-d49d5e88df9a	crear_atencion	atencionclinica	c6fd2fe2-de60-4281-b85d-aa61c7f39ea7	\N	{}	2026-11-25 00:34:58.026806-03	52fe51c4-557f-4319-a459-1c5a9581f577
+d5b3bae3-1a34-4542-8b34-fd2cd99e9438	crear_atencion	atencionclinica	2744c542-439e-4037-b473-f7294c48c0af	\N	{}	2026-11-25 00:34:58.038114-03	0609d85f-d93f-40fa-b242-ca8639315999
+b37a70aa-891a-4fd1-8f54-cd42ac97db5b	crear_atencion	atencionclinica	47676c68-04a0-4152-96da-cf8d5a220b34	\N	{}	2026-11-25 00:34:58.044383-03	0609d85f-d93f-40fa-b242-ca8639315999
+d1cdd476-f420-4a0c-af2d-9cb8199caef7	crear_atencion	atencionclinica	6117f7cd-3584-4504-ba4b-b71fa8d7afba	\N	{}	2026-11-25 00:34:58.052558-03	52fe51c4-557f-4319-a459-1c5a9581f577
+0ba45ea4-decf-4e74-97da-e52c0faa2f35	crear_atencion	atencionclinica	6f2fa34c-600b-486b-8c97-f9bf2e74cb21	\N	{}	2026-11-25 00:34:58.064255-03	52fe51c4-557f-4319-a459-1c5a9581f577
+e6c9b98e-5646-4548-8e9e-b0d76214d05c	crear_atencion	atencionclinica	7113bd4d-7fd9-4157-bd31-404b8273ab8a	\N	{}	2026-11-25 00:34:58.072635-03	52fe51c4-557f-4319-a459-1c5a9581f577
+dd48f96d-2fe1-4e01-8cc0-c7cf35608986	crear_atencion	atencionclinica	b5ecbced-4242-496f-a4ed-7f9d8f32a7d4	\N	{}	2026-11-25 00:34:58.081987-03	0609d85f-d93f-40fa-b242-ca8639315999
+c25249cd-2a39-4bd4-af7b-a9845fa39131	crear_atencion	atencionclinica	4a41f86c-a0f3-4178-9077-534a738cf64f	\N	{}	2026-11-25 00:34:58.090724-03	0609d85f-d93f-40fa-b242-ca8639315999
+62a810b5-8cd6-4bb4-90cb-7f2fba5e97e7	crear_atencion	atencionclinica	07432764-e1b0-48ae-80ec-49cd3e6d43dd	\N	{}	2026-11-25 00:34:58.104989-03	52fe51c4-557f-4319-a459-1c5a9581f577
+c200e390-8368-4bf7-99b3-7135393b8138	crear_atencion	atencionclinica	c4bae37b-2544-4ece-a410-b599193111a5	\N	{}	2026-11-25 00:34:58.116362-03	0609d85f-d93f-40fa-b242-ca8639315999
+c58ed9ab-aca8-4fa8-a52e-9c652fa6c070	crear_atencion	atencionclinica	e91524aa-980b-4e86-976d-adad8287c41b	\N	{}	2026-11-25 00:34:58.125177-03	0609d85f-d93f-40fa-b242-ca8639315999
+2893abfa-2333-4f65-a18a-41cf37f73374	crear_atencion	atencionclinica	da6577d9-cc94-49ef-8fcb-56485da18506	\N	{}	2026-11-25 00:34:58.141169-03	52fe51c4-557f-4319-a459-1c5a9581f577
+f1802723-a140-484e-9d7d-ea1dac6ee3a1	crear_atencion	atencionclinica	cbde6602-87fe-4e21-b68a-fa39ff3d82f7	\N	{}	2026-11-25 00:34:58.151848-03	52fe51c4-557f-4319-a459-1c5a9581f577
+66214f66-acdc-4fae-87d1-1f52895d60d0	crear_atencion	atencionclinica	81904100-d6ab-416e-ac1b-f29e864721b4	\N	{}	2026-11-25 00:34:58.164161-03	52fe51c4-557f-4319-a459-1c5a9581f577
+e3551dd2-fbd7-4e16-897d-7ced4ddab5c0	crear_atencion	atencionclinica	7b5f0adc-8ac8-4199-baba-3448c99fb705	\N	{}	2026-11-25 00:34:58.177458-03	0609d85f-d93f-40fa-b242-ca8639315999
+a26fd5ec-55d4-457e-ab4d-69408ab4e3da	crear_atencion	atencionclinica	86282ee2-5d19-400d-b768-60aaf01738fb	\N	{}	2026-11-25 00:34:58.185028-03	0609d85f-d93f-40fa-b242-ca8639315999
+996aa42c-32a5-435c-b357-96b042a607d1	corregir_atencion	atencionclinica	07cd83f4-8f96-4ad5-ac68-65823bf3d538	\N	{"campos": ["pie_izquierdo"], "corrige": "da6577d9-cc94-49ef-8fcb-56485da18506"}	2026-11-25 00:34:58.19459-03	52fe51c4-557f-4319-a459-1c5a9581f577
+7a452cdf-210f-4ca2-a5ad-cd2b12ca652f	emitir_derivacion	derivacion	35534d27-7578-437c-a022-ea1f468732d9	\N	{"especialidad": "dermatologia"}	2026-11-25 00:34:58.201116-03	52fe51c4-557f-4319-a459-1c5a9581f577
+8a46afc4-70b9-46bc-bc51-ec541a085e3d	reservar_cita	cita	5b5f895f-a751-4332-99bb-d38cc7d8e377	\N	{}	2026-11-25 00:34:58.239755-03	fb274a47-fb14-47e1-b3f3-f2c564a4ee91
+02accba8-c4a4-4fa5-b211-7cc1aacc3ceb	reservar_cita	cita	38b70b4f-5d7d-4676-b844-d53758e7797f	\N	{}	2026-11-25 00:34:58.259242-03	926ee2d7-1575-4b18-9db6-367e2533fb11
+a95fcf70-1833-4b2c-91c8-6fbe21caad0d	reservar_cita	cita	ef7db830-17b0-4f36-8ee8-b630d485ad73	\N	{}	2026-11-25 00:34:58.280274-03	cfd9381d-db9c-47eb-884b-6e92b6666b65
+c97b3832-1752-45ea-a3d7-9c9f61132859	reservar_cita	cita	992f5606-5f76-4a5d-9721-e16d74f32478	\N	{}	2026-11-25 00:34:58.29733-03	355a1a38-97ef-4c9f-85b1-46131401279e
+478c7957-4d86-49f3-ad81-2750eb05871f	reservar_cita	cita	fba19f0b-0e6a-460a-9a10-31f6e92cf206	\N	{}	2026-11-25 00:34:58.318928-03	355a1a38-97ef-4c9f-85b1-46131401279e
+ebc22359-e94c-4eb4-85c2-2a6bc4bd7506	reservar_cita	cita	f26414cd-e39d-4e8e-bbb3-919c6939a4a8	\N	{}	2026-11-25 00:34:58.337351-03	f8dae367-05d4-461c-8e5b-da0374c47bc2
+\.
+
+
+--
+-- Data for Name: auth_group; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.auth_group (id, name) FROM stdin;
+\.
+
+
+--
+-- Data for Name: auth_group_permissions; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.auth_group_permissions (id, group_id, permission_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: auth_permission; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.auth_permission (id, name, content_type_id, codename) FROM stdin;
+1	Can add log entry	1	add_logentry
+2	Can change log entry	1	change_logentry
+3	Can delete log entry	1	delete_logentry
+4	Can view log entry	1	view_logentry
+5	Can add permission	2	add_permission
+6	Can change permission	2	change_permission
+7	Can delete permission	2	delete_permission
+8	Can view permission	2	view_permission
+9	Can add group	3	add_group
+10	Can change group	3	change_group
+11	Can delete group	3	delete_group
+12	Can view group	3	view_group
+13	Can add content type	4	add_contenttype
+14	Can change content type	4	change_contenttype
+15	Can delete content type	4	delete_contenttype
+16	Can view content type	4	view_contenttype
+17	Can add session	5	add_session
+18	Can change session	5	change_session
+19	Can delete session	5	delete_session
+20	Can view session	5	view_session
+21	Can add TOTP device	6	add_totpdevice
+22	Can change TOTP device	6	change_totpdevice
+23	Can delete TOTP device	6	delete_totpdevice
+24	Can view TOTP device	6	view_totpdevice
+25	Can add usuario	7	add_usuario
+26	Can change usuario	7	change_usuario
+27	Can delete usuario	7	delete_usuario
+28	Can view usuario	7	view_usuario
+29	Can add paciente	8	add_paciente
+30	Can change paciente	8	change_paciente
+31	Can delete paciente	8	delete_paciente
+32	Can view paciente	8	view_paciente
+33	Can add profesional	9	add_profesional
+34	Can change profesional	9	change_profesional
+35	Can delete profesional	9	delete_profesional
+36	Can view profesional	9	view_profesional
+37	Can add certificación	10	add_certificacion
+38	Can change certificación	10	change_certificacion
+39	Can delete certificación	10	delete_certificacion
+40	Can view certificación	10	view_certificacion
+41	Can add registro pendiente	11	add_registropendiente
+42	Can change registro pendiente	11	change_registropendiente
+43	Can delete registro pendiente	11	delete_registropendiente
+44	Can view registro pendiente	11	view_registropendiente
+45	Can add código de respaldo	12	add_codigorespaldo
+46	Can change código de respaldo	12	change_codigorespaldo
+47	Can delete código de respaldo	12	delete_codigorespaldo
+48	Can view código de respaldo	12	view_codigorespaldo
+49	Can add dispositivo de verificación	13	add_dispositivoverificacion
+50	Can change dispositivo de verificación	13	change_dispositivoverificacion
+51	Can delete dispositivo de verificación	13	delete_dispositivoverificacion
+52	Can view dispositivo de verificación	13	view_dispositivoverificacion
+53	Can add tratamiento	14	add_tratamiento
+54	Can change tratamiento	14	change_tratamiento
+55	Can delete tratamiento	14	delete_tratamiento
+56	Can view tratamiento	14	view_tratamiento
+57	Can add disponibilidad	15	add_disponibilidad
+58	Can change disponibilidad	15	change_disponibilidad
+59	Can delete disponibilidad	15	delete_disponibilidad
+60	Can view disponibilidad	15	view_disponibilidad
+61	Can add cita	16	add_cita
+62	Can change cita	16	change_cita
+63	Can delete cita	16	delete_cita
+64	Can view cita	16	view_cita
+65	Can add bloqueo de horario	17	add_bloqueohorario
+66	Can change bloqueo de horario	17	change_bloqueohorario
+67	Can delete bloqueo de horario	17	delete_bloqueohorario
+68	Can view bloqueo de horario	17	view_bloqueohorario
+69	Can add notificación	18	add_notificacion
+70	Can change notificación	18	change_notificacion
+71	Can delete notificación	18	delete_notificacion
+72	Can view notificación	18	view_notificacion
+73	Can add consentimiento	19	add_consentimiento
+74	Can change consentimiento	19	change_consentimiento
+75	Can delete consentimiento	19	delete_consentimiento
+76	Can view consentimiento	19	view_consentimiento
+77	Can add ficha clínica	20	add_fichaclinica
+78	Can change ficha clínica	20	change_fichaclinica
+79	Can delete ficha clínica	20	delete_fichaclinica
+80	Can view ficha clínica	20	view_fichaclinica
+81	Can add atención clínica	21	add_atencionclinica
+82	Can change atención clínica	21	change_atencionclinica
+83	Can delete atención clínica	21	delete_atencionclinica
+84	Can view atención clínica	21	view_atencionclinica
+85	Can add derivación	22	add_derivacion
+86	Can change derivación	22	change_derivacion
+87	Can delete derivación	22	delete_derivacion
+88	Can view derivación	22	view_derivacion
+89	Can add marca en el pie	23	add_marcapie
+90	Can change marca en el pie	23	change_marcapie
+91	Can delete marca en el pie	23	delete_marcapie
+92	Can view marca en el pie	23	view_marcapie
+93	Can add conversación del asistente	24	add_conversacionchatbot
+94	Can change conversación del asistente	24	change_conversacionchatbot
+95	Can delete conversación del asistente	24	delete_conversacionchatbot
+96	Can view conversación del asistente	24	view_conversacionchatbot
+97	Can add mensaje del asistente	25	add_interaccionchatbot
+98	Can change mensaje del asistente	25	change_interaccionchatbot
+99	Can delete mensaje del asistente	25	delete_interaccionchatbot
+100	Can view mensaje del asistente	25	view_interaccionchatbot
+101	Can add foto del asistente	26	add_fotochatbot
+102	Can change foto del asistente	26	change_fotochatbot
+103	Can delete foto del asistente	26	delete_fotochatbot
+104	Can view foto del asistente	26	view_fotochatbot
+105	Can add registro de auditoría	27	add_registroauditoria
+106	Can change registro de auditoría	27	change_registroauditoria
+107	Can delete registro de auditoría	27	delete_registroauditoria
+108	Can view registro de auditoría	27	view_registroauditoria
+109	Can add pago	28	add_pago
+110	Can change pago	28	change_pago
+111	Can delete pago	28	delete_pago
+112	Can view pago	28	view_pago
+\.
+
+
+--
+-- Data for Name: chatbot_conversacionchatbot; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.chatbot_conversacionchatbot (id, creada_en, actualizada_en, paciente_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: chatbot_fotochatbot; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.chatbot_fotochatbot (id, contenido, media_type, creada_en, interaccion_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: chatbot_interaccionchatbot; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.chatbot_interaccionchatbot (id, tipo, consulta, con_foto, respuesta, categoria_triaje, requiere_derivacion, motivo_derivacion, sugerir_reserva, implementacion, latencia_ms, creada_en, conversacion_id, paciente_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: clinica_atencionclinica; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.clinica_atencionclinica (id, fecha, motivo_consulta, diagnostico, observacion, tratamiento, indicaciones, proxima_revision, cita_id, profesional_id, ficha_id, corrige_id, motivo_correccion, pie_derecho, pie_izquierdo, termino) FROM stdin;
+95670c35-fe12-4bcb-8de9-b237b05ad468	2026-10-01 09:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	e874944a-d57e-4904-a9ca-68f6c5b9f3c8	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-01 09:45:00-03
+f411542e-a827-4432-af2e-a1089aefb8ee	2026-10-01 10:15:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	0fc1f43f-2abd-4c46-9672-c80edbcbb358	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-01 11:00:00-03
+13a330bd-4fc5-4d80-8a12-c6ee7326fdd5	2026-10-02 14:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	df3d494d-bb65-45d6-8791-19552595cfcf	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-02 14:45:00-03
+8b0bfb49-57d5-414d-b343-c6f8e3dda57c	2026-10-05 09:00:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	7669ba5b-f38c-492d-ace4-3240709e36dd	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-05 09:30:00-03
+baae2eae-1103-4695-8526-2fdabd7f9c7c	2026-10-05 10:15:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Antifúngico tópico dos veces al día por ocho semanas.	\N	2dffce38-b3cf-4d2d-8284-312339b00c47	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-05 11:00:00-03
+48419488-72c9-451e-ad2d-fb43721a71d4	2026-10-05 14:00:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Antifúngico tópico dos veces al día por ocho semanas.	\N	6de3d073-2109-4c62-acbc-dd8865d1ee40	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-05 14:30:00-03
+0666c72a-ec18-4c7b-b9ec-901a3624e9f2	2026-10-05 16:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	6c323a65-0463-4e73-b1e8-af5f8ddd7725	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-05 17:00:00-03
+fa2aeed6-2393-46bf-9ce1-fd8ff1e4cf70	2026-10-05 09:00:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	dadcd39a-0ec1-4ecb-94de-439399505c19	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-05 09:30:00-03
+88770acc-a10a-4e64-a75b-e721aeac10c3	2026-10-05 10:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	9ff9ba48-b65a-477e-a6e0-345ee677c477	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-05 11:15:00-03
+04a44d77-1e3a-4479-9946-962ff185dd2c	2026-10-06 11:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Antifúngico tópico dos veces al día por ocho semanas.	\N	d291ef49-b848-4817-9065-e7ddfc8b3ff2	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-06 12:15:00-03
+4a257872-e786-48d0-be00-0932c1fb2d6b	2026-10-06 14:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	d0ff8347-ae45-4b1c-833b-551e9ecc3ede	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-06 14:45:00-03
+7a1f97f0-5be4-4e6a-8324-92fb2019eb7b	2026-10-07 09:00:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	54b6b43d-1d35-430d-9bcd-f5657bb075a1	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-07 09:45:00-03
+73371161-4c5b-44e1-997b-ec88b5e1316c	2026-10-07 14:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	d436d73f-8385-4f5a-80e7-a15e7987affc	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-07 14:45:00-03
+73a856f8-5ab2-42df-b9d1-f1e1e2209793	2026-10-07 15:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	674ea182-6c00-4c68-8d2b-43c5aedd7b96	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-07 16:00:00-03
+69a52b62-358c-4972-be86-616b5e279f33	2026-10-07 16:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	2742e2db-5546-4d4c-b252-6626d45ab224	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-07 17:00:00-03
+b4d54132-8399-466c-b440-d60cf32697e5	2026-10-07 16:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	aaee3ad4-6ae6-4b72-8ce6-98e3f14b3299	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-07 17:15:00-03
+ef3c7171-e29f-4f5d-980c-194c677daa16	2026-10-08 10:15:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	f3c1cc99-f968-4bb7-b03f-a785380f079c	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-10-08 10:45:00-03
+6f763397-47a9-441e-8d26-59c1a4ff1770	2026-10-08 11:30:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	2143e837-75b0-4d6d-9477-3e84121eacfa	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-08 12:00:00-03
+3a098221-4aa7-4a50-ac60-ceda88a9500d	2026-10-08 16:30:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	c65855f9-48e9-4571-8e6f-737514ded836	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-08 17:15:00-03
+e60ce974-3700-4ead-bf86-de4e2db085b1	2026-10-09 10:15:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Antifúngico tópico dos veces al día por ocho semanas.	\N	4cfa4740-ffbb-4345-84c4-c01c3918e498	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-09 11:15:00-03
+bfb4fd38-13b0-4c77-997a-d3980f17e6a5	2026-10-09 11:30:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	be9b7e6f-5499-4c3f-8248-ebae34b1b7a6	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-09 12:15:00-03
+78633271-5951-4c41-982a-6c2a5b61bd80	2026-10-09 15:15:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Antifúngico tópico dos veces al día por ocho semanas.	\N	7ad06195-ee74-460e-a4ff-50b883fd63bd	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-10-09 16:15:00-03
+2104d552-83dd-4424-83b1-84ac34f1aff1	2026-10-09 09:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	67e88e08-a2fa-486a-928a-52b8aac9369a	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-09 09:30:00-03
+84b3a033-5d96-4550-a4e4-080519db76cd	2026-10-12 10:15:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Antifúngico tópico dos veces al día por ocho semanas.	\N	2e577bef-3e1b-4e1d-815c-c5ca8e73c1ee	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-12 11:15:00-03
+e53fa538-5ddc-41c9-af4d-dffe565e31f2	2026-10-12 11:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	8683891e-04f1-4a3a-ab53-b3d060a104aa	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-12 12:15:00-03
+6c44e891-1687-486f-98d7-02fe2ef3425e	2026-10-12 15:15:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Antifúngico tópico dos veces al día por ocho semanas.	\N	bc8ed007-5327-470e-a02f-2a3ef4aaf262	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-10-12 16:00:00-03
+a61e320c-cedb-4fbb-bb98-37cc8fc6d441	2026-10-12 10:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Antifúngico tópico dos veces al día por ocho semanas.	\N	3cc03be7-0e0b-41dd-bb4e-b56c4a8295b5	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-12 11:15:00-03
+e382f730-f590-4f76-8bda-b550cb9230ac	2026-10-13 14:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	caf21d0d-f33f-46ec-8131-e054dabe9bab	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-13 14:30:00-03
+7b0cbc31-a4ff-4de1-9d12-6a846b2ac211	2026-10-14 09:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Antifúngico tópico dos veces al día por ocho semanas.	\N	74bc1db7-4529-4b91-9dc1-7a1d25ebd1d8	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-14 09:30:00-03
+22142607-8483-4ad4-82bc-2e15f4ed3d0f	2026-10-14 16:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	9783ecc7-3658-4caf-9da8-5df4ed761204	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-14 17:15:00-03
+3149e3dd-4630-49d9-ba1f-3c7051b104fd	2026-10-14 16:30:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	084212c9-27f6-46cf-afb8-34887164a881	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-14 17:15:00-03
+fd5a4307-40e3-4e3f-b7c2-d1e3e1f1717d	2026-10-15 10:15:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	689c3a37-a4b4-4a50-ad83-65ec5d9f4106	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-15 11:15:00-03
+e23babec-c000-4f9d-a348-7468e466b0e4	2026-10-15 14:00:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	dd1aedf1-35d2-40bf-a688-d4c29fe5b31f	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-15 15:00:00-03
+e49c6e7b-8558-44e3-85f1-b319489c5d24	2026-10-15 16:30:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	98872bd6-571d-44e1-9f0a-e731000a515f	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-15 17:15:00-03
+bc1047fe-3b41-40fe-b92e-1a98d747b3e8	2026-10-15 09:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Antifúngico tópico dos veces al día por ocho semanas.	\N	a55cf26f-2ecc-482a-bec2-0f975fb2d605	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-15 09:45:00-03
+93bf180a-ae51-4010-b7b1-f97ace12c8d5	2026-10-16 14:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	d147f617-50c3-4e4a-adb2-a65a0e10284b	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-16 14:45:00-03
+85700e2b-8aa1-468c-904e-5b1c986bd48a	2026-10-16 16:30:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	bfa911a3-ceda-4a81-a7b2-4a2c36ea5453	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-16 17:30:00-03
+bd9f8cb1-5f9f-4b9b-bcf8-01078562f481	2026-10-16 09:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	5e53f741-dbfd-4355-a8a2-bbefedad546a	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-16 09:45:00-03
+3b4079e5-763a-464d-a940-5f3928f67438	2026-10-16 11:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	00df3a56-157a-44a3-9307-c9b89558133c	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-16 12:15:00-03
+92fa3a87-2223-4c60-9de8-4b9a09087f7a	2026-10-19 11:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Antifúngico tópico dos veces al día por ocho semanas.	\N	8e049dcf-3d04-4a84-b3b0-c9da9dd74446	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-10-19 12:30:00-03
+c64db89d-9534-4004-b628-956cb414bf21	2026-10-19 14:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	0631dba0-8f6f-4ee1-b915-08d4fdd4811a	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-19 14:45:00-03
+e60784d2-bb88-4404-9e6c-3fa2aeaaa7e1	2026-10-19 16:30:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	c7db6ac4-0ef8-4168-a37a-927faa1d4d43	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-19 17:00:00-03
+c0373e13-4bef-4f1e-9be4-e8211b7b9357	2026-10-20 14:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Antifúngico tópico dos veces al día por ocho semanas.	\N	345eda25-66df-498c-abd8-73013d94052d	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-20 14:45:00-03
+4b4c2b33-bf05-416e-985c-a72f95a86641	2026-10-20 16:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	9154cde6-06bc-44fa-914d-c19b0d3bd527	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-20 17:30:00-03
+20971faf-d054-468f-8f81-3271f9d9bd57	2026-10-20 11:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	4afb7cfb-0f66-4aec-b18e-f1063cc1d053	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-20 12:15:00-03
+1f4ed662-4b40-46ac-a93a-b1c2fd67a69a	2026-10-21 09:00:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	aeaf7c87-6019-4ed0-857a-a2a45242a1a6	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-21 09:45:00-03
+5dab88ca-6b3c-48ea-99db-96e3cc33c920	2026-10-21 16:30:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	d292e8e2-f6be-43f8-9b49-ba28735c70c4	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-21 17:15:00-03
+0fa6f2a4-478b-4c34-83e2-a57f3f3573e4	2026-10-21 16:30:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	eb414015-6546-4fc8-821c-1b3ead01a264	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-21 17:00:00-03
+bb535616-91d1-440f-b53d-5fe53f615976	2026-10-22 11:30:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	85880cd0-4cbe-4c63-887e-8db7a19e9bde	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-22 12:15:00-03
+b07f8a59-54b3-4f0a-9911-b9173452a91f	2026-10-22 16:30:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	cfa78ecb-1824-4b28-b500-74e4b7e7f15e	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-22 17:15:00-03
+05274648-f637-4307-bd8d-7827a81e40a2	2026-10-23 14:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	866f63e6-ea51-4eb5-a962-93570e6ff75c	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-10-23 14:30:00-03
+070a1361-6ca3-4457-ad1b-7160acb6d57a	2026-10-23 10:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Antifúngico tópico dos veces al día por ocho semanas.	\N	779dd949-614d-41f7-9710-e7debc1cc9d9	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-23 11:15:00-03
+3621da52-e930-47c1-8626-07e24c710f54	2026-10-26 11:30:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	52564881-40fc-4bd0-aeb5-f23e8758d276	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-10-26 12:30:00-03
+caed3026-9212-41e3-8ee8-72ccf45ffcd9	2026-10-26 14:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	e0086a71-afa3-48b1-9b56-dfe72f6be95a	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-26 14:45:00-03
+991867b9-bb8e-4cc3-8ca9-595f83a03a76	2026-10-26 15:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Antifúngico tópico dos veces al día por ocho semanas.	\N	b8d881e0-de07-4283-a1aa-950d90a5a72b	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-26 15:45:00-03
+1947b3aa-c4af-419d-87cf-2d578e809f88	2026-10-26 14:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	5a122cb2-64ab-49d8-960c-f90861a59f2f	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-26 14:45:00-03
+e871bbb0-f2e2-4d84-9cfb-4f85759c8b30	2026-10-26 16:30:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Antifúngico tópico dos veces al día por ocho semanas.	\N	7fb72f43-bb02-4bed-93e0-4aaba47a1b79	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-26 17:15:00-03
+38cfc8ff-7fac-4e53-873c-acbdc27651c3	2026-10-27 10:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	6ed0c7f8-8285-4a9a-a86f-61c6c1f1d7e1	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-27 11:00:00-03
+682e5a1a-c8f3-4406-b0fe-f1ba64b2b875	2026-10-27 14:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	00e08287-856c-4362-a3e2-839711c9bcb5	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-10-27 14:45:00-03
+8973ad0e-cb88-4402-9267-dfb07cde4a5b	2026-10-27 10:15:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	e8d6f0ff-d47e-49e6-a63b-a60cf2644205	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-27 11:15:00-03
+4dc744e6-d34a-497d-abe5-76ac78c3e822	2026-10-27 15:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	4d679d1e-5e13-41e5-9c07-cf99a7ede82a	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-10-27 15:45:00-03
+65475539-e763-44d2-bdf2-9f72a793dc73	2026-10-28 11:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	115319a1-4663-4498-8b65-20148e910c37	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-28 12:15:00-03
+d3c67331-5707-4e08-a19c-7013bf604d80	2026-10-28 14:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Antifúngico tópico dos veces al día por ocho semanas.	\N	d0a4a8ad-7934-4500-983e-ef8eb2873622	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-28 15:00:00-03
+3aa7d814-3bf2-4ebb-b43d-df423d9483b0	2026-10-28 16:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Antifúngico tópico dos veces al día por ocho semanas.	\N	6ceea6a8-414d-4f2a-bbe9-ed338a277441	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-10-28 17:00:00-03
+7adb9387-e118-4d36-b5b9-87dc553e7154	2026-10-28 10:15:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	d92367b8-882b-4204-b5d3-15784f2256ee	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-28 11:00:00-03
+bf84e59d-7781-4ded-9bfe-50b3cbb44917	2026-10-28 14:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	00926893-bedf-41b1-bebe-68d344e966eb	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-28 15:00:00-03
+dd057464-e44c-4de7-b28f-112a7d9b6a09	2026-10-29 09:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	98d15778-7f94-4194-9700-dfda524f8d9d	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-29 09:30:00-03
+e0d7717a-760e-4a22-ac1c-dbd27eda6744	2026-10-29 15:15:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	50c9b746-f21d-49b8-b3fd-a09ded194499	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-10-29 16:00:00-03
+73ba3990-f852-49f1-945b-904537eb454d	2026-10-29 16:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	1fc40e89-ce22-423e-8fe3-fceeba31e7f6	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-29 17:15:00-03
+c1d081af-cbe3-4527-82af-9debc254fdf6	2026-10-30 10:15:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	c0e2f195-5faf-4368-a528-5f6e78a629c9	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-10-30 11:15:00-03
+3eebc98a-3f94-4b13-9ada-5fcac7ba2372	2026-10-30 14:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	b8e1be92-e532-4555-9352-eece0f2fb332	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-10-30 14:45:00-03
+cf59370c-d3c1-40de-8af9-7d9835aff5f0	2026-10-30 10:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	b4e9af81-6938-4ac3-9436-515b7279f816	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-30 10:45:00-03
+ee5b5b8d-a5b7-49df-a1f0-2b3b961b78d5	2026-10-30 15:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	05770074-c1b6-4281-a8cf-f101617da05d	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-10-30 16:15:00-03
+dc0b55c6-f6bb-4208-87ca-88627d7b5851	2026-11-02 14:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Antifúngico tópico dos veces al día por ocho semanas.	\N	060b5571-2c50-4f86-954c-942b65ed0230	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-02 14:45:00-03
+b3d4c832-0bb2-4e09-a38b-ea48f46e63fc	2026-11-02 09:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	89beed98-241d-4bef-b6af-e6b914f4def3	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-02 09:45:00-03
+69db43d9-0fb4-4aaf-9d65-0a5ebf288464	2026-11-02 11:30:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	48f1873e-7cc8-435e-9b62-ebd0229d59da	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-02 12:30:00-03
+f817091a-a992-42b2-a92c-ec714c657390	2026-11-03 09:00:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	c546da59-a7e2-44c4-a637-aa0f9b40bd95	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-03 10:00:00-03
+26b8ffea-36cd-4333-8237-7c5ecfca3407	2026-11-03 10:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	227e0c3c-4d9f-4497-9b15-b865dcf452e9	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-11-03 11:15:00-03
+48916b9b-85a5-4b7d-bca6-6d8e66f2669a	2026-11-03 16:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	1a84b51e-7738-4cbd-9542-0cfcc309fa7b	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-03 17:30:00-03
+b24d037e-8ccd-4043-b621-0cfade38078d	2026-11-03 10:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	9e4b6de4-1027-4efe-9dda-2f8a13070593	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-03 11:00:00-03
+a47cbb3a-80df-4428-9b75-3ddec5e6c9ed	2026-11-04 10:15:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	882eea17-6e70-4f6d-b4df-2326bc4ff2ce	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-04 11:00:00-03
+49b5fa10-4460-4996-84e7-1cba87786aa8	2026-11-04 14:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	dc07ce0e-9502-42ec-9e16-c668b8f225b4	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-04 14:30:00-03
+ffb54507-04bd-42fa-89f4-9c2a83d05eb8	2026-11-04 16:30:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	3fab472c-d075-4d39-b925-ed270790b840	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-04 17:00:00-03
+b60086d2-610b-47be-ac92-a3ad3be50abb	2026-11-04 16:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	996ead59-ccb3-468b-8bcd-50387804c0fc	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-04 17:30:00-03
+92ef73cc-3fb0-4054-ae0d-b568a830c398	2026-11-05 09:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	083a7c4e-9988-4f04-8afe-3dc1ad569ba2	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-05 09:45:00-03
+7c34d0bd-0f3c-465a-bc6d-e4fe8a996387	2026-11-05 15:15:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	0b73dd7f-3696-41ec-a2de-91afa5ed22ac	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-05 16:00:00-03
+a048015d-ffd3-4843-a0bb-f136ff0c3a0c	2026-11-05 16:30:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	5c1d5644-95c4-4dea-9673-5394edc1ac33	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-05 17:00:00-03
+a676c8fe-3ad9-4215-b0d8-d862684cec36	2026-11-05 14:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	4d76514b-372b-4dd9-a06f-0bd18a975178	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-05 14:30:00-03
+bb4d4967-5155-4488-bfb6-1dc5c36b088d	2026-11-05 16:30:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	051fc4cf-f460-4413-abae-0c061004c585	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-05 17:00:00-03
+90a1d825-99f1-49c8-85ab-afeeb7455781	2026-11-06 10:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Antifúngico tópico dos veces al día por ocho semanas.	\N	5e6ee57a-3e19-4b8a-b814-702490ab2153	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-06 11:00:00-03
+9d6ef23d-b8f9-461a-b7a5-169768f33935	2026-11-06 11:30:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	8b41cfe9-30fa-4da2-a856-33bf0bc5913d	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-06 12:15:00-03
+0be39eda-1000-479c-9386-182f9a8866cf	2026-11-06 16:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Antifúngico tópico dos veces al día por ocho semanas.	\N	96cae045-ca56-4ee9-bc1a-7014a904cff4	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-06 17:00:00-03
+a25ff193-9f60-4674-8dbd-ea42876d1d09	2026-11-09 10:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	0c55595f-27bb-4fd2-8b65-dde9f4d20732	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-09 10:45:00-03
+23459a64-ef94-4aa7-9946-eb1b88e6c344	2026-11-09 09:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	dab3a2c1-2a49-4b88-9dfb-66ea77e9ac3b	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-09 09:45:00-03
+5cb5d3f4-bffc-46ae-b31d-3be4acab5989	2026-11-09 16:30:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Antifúngico tópico dos veces al día por ocho semanas.	\N	4d2d1847-a359-4205-bf88-ca4f2ca5dd8a	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-09 17:30:00-03
+08a06074-e756-45fd-861e-6c25f464d30a	2026-11-10 14:00:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Antifúngico tópico dos veces al día por ocho semanas.	\N	33bcccc4-c8d2-4e00-9ca4-02c79bbbc17d	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-11-10 14:45:00-03
+a76ec921-d356-4ddb-8eae-a8d40fc9be42	2026-11-10 14:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	e96c27bb-9ac8-4380-8e03-d66d8b3fd8ff	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-10 15:00:00-03
+bfba9d6b-ae0f-4d6a-8401-8edddc6f778c	2026-11-11 09:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	ea42a0b8-7cbf-4ede-a40f-6843ebe6e9cd	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-11 09:45:00-03
+b35546c2-b60a-4b0c-b65e-a7b3b4ff60f6	2026-11-11 10:15:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	4743f9c8-9c74-4bf0-9d09-c06c48efebf4	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-11 11:15:00-03
+dc5cd7a5-474d-4182-b913-e708b58da832	2026-11-11 15:15:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	9c8394b2-2520-42ed-a482-a04ad67d4936	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-11 16:15:00-03
+540cf354-9b76-4463-8005-21a861d54dfa	2026-11-11 10:15:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	51d14000-f3c9-4919-9f3c-8b250e7aefb6	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-11 11:00:00-03
+0d3b69a0-e179-4743-a743-f9e81d71bbb5	2026-11-12 09:00:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Antifúngico tópico dos veces al día por ocho semanas.	\N	4afe7e71-5ee2-4f54-b423-b341969f5829	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-12 09:30:00-03
+4da84d4c-634b-44a9-a408-5ead34efe7a4	2026-11-12 11:30:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	b827e5e2-ce05-4032-b0d7-f1a114db1386	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-12 12:15:00-03
+898f74d7-15ef-44d9-81d3-f9fdc9e6b481	2026-11-13 11:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	9e1d153f-3b84-4403-9973-015d9f5dcfb2	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-13 12:15:00-03
+9cea6027-cafb-4d09-bf5e-d23b222b8027	2026-11-13 15:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	0a54323d-1dce-4f53-8748-76b46b4cacd7	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-13 15:45:00-03
+6cefae78-dc6f-41ca-9ed2-6a1d91f74738	2026-11-13 14:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	1ee6fa86-547c-4807-99f2-2befe6cf41d8	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-13 14:45:00-03
+ecdedb12-2075-41b3-9cf9-9ca13c9700e5	2026-11-13 15:15:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Antifúngico tópico dos veces al día por ocho semanas.	\N	59b783cb-a2d7-4645-881d-84a2cb8b5803	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-13 15:45:00-03
+8b1e9a11-25c5-4d47-8919-d3e93dc36fcd	2026-11-16 09:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Antifúngico tópico dos veces al día por ocho semanas.	\N	598a9963-553f-4dcf-b885-1743f94fe8ba	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-16 09:45:00-03
+1d18d6cf-7bd6-40a7-8bac-3008842b5040	2026-11-16 10:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	d089f1b4-c560-4018-9fd1-96bda141460d	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-16 11:15:00-03
+adbcfc41-466d-409e-94c0-7ee2ad53162c	2026-11-17 16:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	ec3d8bb7-c497-4cca-ae1b-7093cc2ae632	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-17 17:15:00-03
+8e3d10ba-d2cd-4210-bcfd-e76e0a076279	2026-11-17 10:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	1ed34e64-01df-40a5-8a72-35420ea4df3f	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-17 11:00:00-03
+3912678b-99b6-46ea-824e-5e9ebc9245f6	2026-11-18 14:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	c111763a-fb77-487d-9fbc-0d53714779a9	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-18 14:45:00-03
+02468245-5471-423e-b95c-7a133efb0b16	2026-11-18 10:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Antifúngico tópico dos veces al día por ocho semanas.	\N	0ec62493-7d9d-4206-8f79-b1d85b439dbd	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-18 11:15:00-03
+78a565f5-4bfe-4d2c-8b1b-6784cab17a21	2026-11-18 16:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	7e6bc4e6-5e9d-4393-9293-be3fbd419949	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-18 17:30:00-03
+3849ca15-6555-4a4f-81a8-828e427c0ce6	2026-11-19 09:00:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	2923c159-8bf4-4b10-a57f-cbe19cba66f7	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-11-19 09:45:00-03
+e1ca39b8-4854-4318-95af-9b94435d6205	2026-11-19 11:30:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	a98044c7-810a-4180-9085-bf7549c6acbe	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-11-19 12:15:00-03
+c6fd2fe2-de60-4281-b85d-aa61c7f39ea7	2026-11-19 15:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	01ca44e9-ce2c-4d56-9c03-7f89521751e4	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-19 16:00:00-03
+2744c542-439e-4037-b473-f7294c48c0af	2026-11-19 09:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	942b915a-d3ed-4032-b79a-baaee2de870b	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-19 09:45:00-03
+47676c68-04a0-4152-96da-cf8d5a220b34	2026-11-19 15:15:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	2486633d-6327-4338-a235-906084205403	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-19 16:15:00-03
+6117f7cd-3584-4504-ba4b-b71fa8d7afba	2026-11-20 09:00:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	5fde5281-0efc-4fb8-a531-67d6e2a5d34f	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-20 09:45:00-03
+6f2fa34c-600b-486b-8c97-f9bf2e74cb21	2026-11-20 11:30:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	29ad9964-ab5f-41d5-bdeb-7b3ac15e0d98	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-20 12:15:00-03
+7113bd4d-7fd9-4157-bd31-404b8273ab8a	2026-11-20 15:15:00-03	Control podológico	Piel seca con fisuras en talones	Piel seca con fisuras en talones. Sensibilidad conservada.	Desbridamiento de hiperqueratosis e hidratación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	4d676a61-a2f7-49a9-b752-2d43ef9d27bc	52fe51c4-557f-4319-a459-1c5a9581f577	b62bc836-6082-4990-929f-77e33b5c8ad0	\N				2026-11-20 15:45:00-03
+b5ecbced-4242-496f-a4ed-7f9d8f32a7d4	2026-11-20 14:00:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	e75edf3a-46d1-4d53-9b3b-298bcd5cb7f9	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-20 14:45:00-03
+4a41f86c-a0f3-4178-9077-534a738cf64f	2026-11-20 16:30:00-03	Control podológico	Hiperqueratosis plantar en zona metatarsal	Hiperqueratosis plantar en zona metatarsal. Uñas engrosadas en ambos hallux.	Deslaminado y limado de uñas. Enucleación de heloma.	Antifúngico tópico dos veces al día por ocho semanas.	\N	f8bb5a53-16a5-4480-b3ed-d5d8cc68296d	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-20 17:00:00-03
+07432764-e1b0-48ae-80ec-49cd3e6d43dd	2026-11-23 11:30:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Hidratar los pies a diario, sin aplicar crema entre los dedos.	\N	b0399b8d-0e74-42a7-9483-1d41e0837b88	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-23 12:00:00-03
+c4bae37b-2544-4ece-a410-b599193111a5	2026-11-23 10:15:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	e2ef2f28-f4a2-4fd6-a5b5-f6d8c287495e	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-23 11:00:00-03
+e91524aa-980b-4e86-976d-adad8287c41b	2026-11-23 11:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Secar bien entre los dedos y cambiar calcetines a diario.	\N	cc4dc7e2-bc49-4782-a923-e7582f2d6fd2	0609d85f-d93f-40fa-b242-ca8639315999	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-23 12:00:00-03
+da6577d9-cc94-49ef-8fcb-56485da18506	2026-11-24 10:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	9c1f4ccb-3ce9-429d-b298-b077a2ee6db6	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	\N				2026-11-24 11:00:00-03
+cbde6602-87fe-4e21-b68a-fa39ff3d82f7	2026-11-24 11:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Antifúngico tópico dos veces al día por ocho semanas.	\N	e33f504f-3f3a-4856-b95e-45b8a8705b82	52fe51c4-557f-4319-a459-1c5a9581f577	9cfdbd01-90db-477d-8a61-a358f14a6dda	\N				2026-11-24 12:00:00-03
+81904100-d6ab-416e-ac1b-f29e864721b4	2026-11-24 16:30:00-03	Control podológico	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo	Onicomicosis en uñas del segundo y tercer dedo del pie izquierdo.	Fresado de uñas y aplicación de antifúngico tópico.	Antifúngico tópico dos veces al día por ocho semanas.	\N	5437273d-9ffd-49a1-a865-ff583c429963	52fe51c4-557f-4319-a459-1c5a9581f577	202ab4f9-2746-4abe-977e-4e43b4e1318b	\N				2026-11-24 17:30:00-03
+7b5f0adc-8ac8-4199-baba-3448c99fb705	2026-11-24 09:00:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Antifúngico tópico dos veces al día por ocho semanas.	\N	49826534-1a5c-4a16-a395-e8505a08c907	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-24 10:00:00-03
+86282ee2-5d19-400d-b768-60aaf01738fb	2026-11-24 16:30:00-03	Control podológico	Control sin hallazgos nuevos	Control sin hallazgos nuevos. Buena evolución respecto de la atención anterior.	Corte y limado de uñas, revisión general.	Antifúngico tópico dos veces al día por ocho semanas.	\N	da872d39-8dcc-4ab4-a890-61910e4019e5	0609d85f-d93f-40fa-b242-ca8639315999	1fa5294c-d4b3-4335-ad4d-05b3a2644667	\N				2026-11-24 17:15:00-03
+07cd83f4-8f96-4ad5-ac68-65823bf3d538	2026-11-24 10:15:00-03	Control podológico	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección	Onicocriptosis leve en borde lateral del hallux derecho, sin signos de infección.	Espiculotomía del borde lateral y curación.	Usar calzado amplio y evitar cortar las uñas en curva.	\N	\N	52fe51c4-557f-4319-a459-1c5a9581f577	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	da6577d9-cc94-49ef-8fcb-56485da18506	Se registró el pie equivocado.		Hiperqueratosis en talón.	2026-11-24 11:00:00-03
+\.
+
+
+--
+-- Data for Name: clinica_consentimiento; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.clinica_consentimiento (id, tipo, version_texto, aceptado_en, revocado_en, paciente_id) FROM stdin;
+445628c4-7cbc-49b8-9efb-452f7693d10a	tratamiento_datos	v1	2026-11-25 00:34:56.593915-03	\N	fb274a47-fb14-47e1-b3f3-f2c564a4ee91
+32988506-b22a-4a49-bac3-aa8fad06a921	tratamiento_datos	v1	2026-11-25 00:34:56.658387-03	\N	926ee2d7-1575-4b18-9db6-367e2533fb11
+dc40d7e3-fba4-45e1-861f-68afcf77d867	tratamiento_datos	v1	2026-11-25 00:34:56.715203-03	\N	cfd9381d-db9c-47eb-884b-6e92b6666b65
+7645ac3c-fd49-4880-993e-1a2732ab6d64	tratamiento_datos	v1	2026-11-25 00:34:56.778542-03	\N	355a1a38-97ef-4c9f-85b1-46131401279e
+d2d33399-a077-4409-a952-a33748d28d2d	tratamiento_datos	v1	2026-11-25 00:34:56.835856-03	\N	f8dae367-05d4-461c-8e5b-da0374c47bc2
+\.
+
+
+--
+-- Data for Name: clinica_derivacion; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.clinica_derivacion (id, especialidad_destino, especialidad_detalle, motivo, resumen_clinico, emitida_en, atencion_id) FROM stdin;
+35534d27-7578-437c-a022-ea1f468732d9	dermatologia		Lesión cutánea persistente en talón izquierdo que requiere evaluación.	Hiperqueratosis con fisuras que no mejora con hidratación.	2026-11-25 00:34:58.199597-03	07cd83f4-8f96-4ad5-ac68-65823bf3d538
+\.
+
+
+--
+-- Data for Name: clinica_fichaclinica; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.clinica_fichaclinica (id, otras_patologias_cronicas, alergias, medicamentos, observaciones, creada_en, actualizada_en, paciente_id, amputaciones, calzado_adecuado, camina_con_ayuda, diabetes, hta, lugar_atencion_salud, presion_arterial, pulso_pedio_derecho, pulso_pedio_izquierdo, pulso_radial, ulcera_actual, ulcera_previa, varices) FROM stdin;
+202ab4f9-2746-4abe-977e-4e43b4e1318b			Metformina 850 mg		2026-11-25 00:34:56.844658-03	2026-11-25 00:34:56.844668-03	355a1a38-97ef-4c9f-85b1-46131401279e	f	f	t	f	t		140/90	presente	presente		f	f	f
+1fa5294c-d4b3-4335-ad4d-05b3a2644667					2026-11-25 00:34:56.862644-03	2026-11-25 00:34:56.86266-03	f8dae367-05d4-461c-8e5b-da0374c47bc2	f	f	f	t	t		130/85	presente	presente		f	f	f
+0cd80f72-d557-43bc-9a12-1fd8d0ce082c			Losartán 50 mg		2026-11-25 00:34:56.88735-03	2026-11-25 00:34:56.887362-03	fb274a47-fb14-47e1-b3f3-f2c564a4ee91	f	t	f	f	f		130/85	presente	presente		f	f	f
+9cfdbd01-90db-477d-8a61-a358f14a6dda					2026-11-25 00:34:56.915887-03	2026-11-25 00:34:56.915897-03	926ee2d7-1575-4b18-9db6-367e2533fb11	f	t	f	f	f		140/90	presente	presente		f	f	f
+b62bc836-6082-4990-929f-77e33b5c8ad0			Metformina 850 mg		2026-11-25 00:34:57.037453-03	2026-11-25 00:34:57.037465-03	cfd9381d-db9c-47eb-884b-6e92b6666b65	f	t	f	f	f		140/90	presente	presente		f	f	t
+\.
+
+
+--
+-- Data for Name: clinica_marcapie; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.clinica_marcapie (id, simbolo, vista, x, y, ficha_id, atencion_alta_id, creada_en, atencion_baja_id, retirada_en, motivo_baja) FROM stdin;
+2001442c-b4e2-4e93-8f59-c6f2ca32047b	maceracion	planta_derecho	0.47	0.572	1fa5294c-d4b3-4335-ad4d-05b3a2644667	f411542e-a827-4432-af2e-a1089aefb8ee	2026-10-01 11:00:00-03	fa2aeed6-2393-46bf-9ce1-fd8ff1e4cf70	2026-10-05 09:30:00-03	
+a71444d2-aa47-470e-8628-41b7baf47044	paciente_diabetico	dorso_izquierdo	0.488	0.378	202ab4f9-2746-4abe-977e-4e43b4e1318b	73371161-4c5b-44e1-997b-ec88b5e1316c	2026-10-07 14:45:00-03	73a856f8-5ab2-42df-b9d1-f1e1e2209793	2026-10-07 16:00:00-03	
+389e5d85-8b48-4a7f-a284-f5c8fc3f367b	hallux_valgus_incipiente	dorso_izquierdo	0.592	0.8	202ab4f9-2746-4abe-977e-4e43b4e1318b	95670c35-fe12-4bcb-8de9-b237b05ad468	2026-10-01 09:45:00-03	69a52b62-358c-4972-be86-616b5e279f33	2026-10-07 17:00:00-03	
+919d264d-d824-4a1f-9a85-01e3283045f1	dedo_en_garra	dorso_izquierdo	0.595	0.716	b62bc836-6082-4990-929f-77e33b5c8ad0	ef3c7171-e29f-4f5d-980c-194c677daa16	2026-10-08 10:45:00-03	78633271-5951-4c41-982a-6c2a5b61bd80	2026-10-09 16:15:00-03	
+a0b667f9-f808-4cba-a0e9-c0511a27187e	heloma_millar	planta_derecho	0.602	0.554	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	7b0cbc31-a4ff-4de1-9d12-6a846b2ac211	2026-10-14 09:30:00-03	\N	\N	
+f7994cac-3604-4b83-8bcf-24047c7d6db2	maceracion	dorso_izquierdo	0.555	0.498	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	7a1f97f0-5be4-4e6a-8324-92fb2019eb7b	2026-10-07 09:45:00-03	22142607-8483-4ad4-82bc-2e15f4ed3d0f	2026-10-14 17:15:00-03	
+942074d4-8245-41c4-8a7a-047a72870610	paciente_diabetico	dorso_derecho	0.399	0.411	202ab4f9-2746-4abe-977e-4e43b4e1318b	bc1047fe-3b41-40fe-b92e-1a98d747b3e8	2026-10-15 09:45:00-03	93bf180a-ae51-4010-b7b1-f97ace12c8d5	2026-10-16 14:45:00-03	
+06f3ddd5-a8c3-42e2-a31f-dbf7c4e81729	hallux_valgus_incipiente	dorso_derecho	0.428	0.285	9cfdbd01-90db-477d-8a61-a358f14a6dda	bfb4fd38-13b0-4c77-997a-d3980f17e6a5	2026-10-09 12:15:00-03	1f4ed662-4b40-46ac-a93a-b1c2fd67a69a	2026-10-21 09:45:00-03	
+195b5935-9c7a-4154-a7c3-571a6dd14b43	hallux_valgus_incipiente	planta_izquierdo	0.382	0.71	1fa5294c-d4b3-4335-ad4d-05b3a2644667	bd9f8cb1-5f9f-4b9b-bcf8-01078562f481	2026-10-16 09:45:00-03	b07f8a59-54b3-4f0a-9911-b9173452a91f	2026-10-22 17:15:00-03	
+3bce7ae9-3099-4fd3-a833-856885d133fb	hallux_valgus_pronunciado	planta_izquierdo	0.591	0.76	202ab4f9-2746-4abe-977e-4e43b4e1318b	baae2eae-1103-4695-8526-2fdabd7f9c7c	2026-10-05 11:00:00-03	1947b3aa-c4af-419d-87cf-2d578e809f88	2026-10-26 14:45:00-03	
+04cae8bd-ae7d-4955-8a04-446ae063be4e	hallux_valgus_incipiente	planta_izquierdo	0.539	0.759	b62bc836-6082-4990-929f-77e33b5c8ad0	3621da52-e930-47c1-8626-07e24c710f54	2026-10-26 12:30:00-03	682e5a1a-c8f3-4406-b0fe-f1ba64b2b875	2026-10-27 14:45:00-03	
+e6ac391d-d179-4cc4-a313-587e27a7cd45	heloma_millar	dorso_derecho	0.385	0.362	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	65475539-e763-44d2-bdf2-9f72a793dc73	2026-10-28 12:15:00-03	dd057464-e44c-4de7-b28f-112a7d9b6a09	2026-10-29 09:30:00-03	
+e4a73fdc-ef9c-4cde-89c5-e08b1bfa4802	dedo_en_garra	planta_derecho	0.482	0.644	9cfdbd01-90db-477d-8a61-a358f14a6dda	48419488-72c9-451e-ad2d-fb43721a71d4	2026-10-05 14:30:00-03	e0d7717a-760e-4a22-ac1c-dbd27eda6744	2026-10-29 16:00:00-03	
+39078c0d-9bc0-4ec9-b969-a4a1f5b6742d	hallux_valgus_pronunciado	planta_derecho	0.527	0.575	b62bc836-6082-4990-929f-77e33b5c8ad0	c1d081af-cbe3-4527-82af-9debc254fdf6	2026-10-30 11:15:00-03	\N	\N	
+d7ad907b-1233-4205-ae90-4e40c5e7b6fa	paciente_diabetico	dorso_izquierdo	0.551	0.599	1fa5294c-d4b3-4335-ad4d-05b3a2644667	88770acc-a10a-4e64-a75b-e721aeac10c3	2026-10-05 11:15:00-03	cf59370c-d3c1-40de-8af9-7d9835aff5f0	2026-10-30 10:45:00-03	
+d17ce48b-f757-4b6b-a25c-64dad3f5c1f0	paciente_diabetico	dorso_izquierdo	0.449	0.265	202ab4f9-2746-4abe-977e-4e43b4e1318b	8973ad0e-cb88-4402-9267-dfb07cde4a5b	2026-10-27 11:15:00-03	dc0b55c6-f6bb-4208-87ca-88627d7b5851	2026-11-02 14:45:00-03	
+d3d2872b-6bda-4be4-ac22-517cf9d90469	hallux_valgus_pronunciado	planta_izquierdo	0.414	0.337	202ab4f9-2746-4abe-977e-4e43b4e1318b	4dc744e6-d34a-497d-abe5-76ac78c3e822	2026-10-27 15:45:00-03	b3d4c832-0bb2-4e09-a38b-ea48f46e63fc	2026-11-02 09:45:00-03	
+25451750-aac0-4dc6-9eb4-b682c4a71ed3	hallux_valgus_incipiente	planta_derecho	0.616	0.65	b62bc836-6082-4990-929f-77e33b5c8ad0	f817091a-a992-42b2-a92c-ec714c657390	2026-11-03 10:00:00-03	\N	\N	
+516222b8-a7fa-48c3-84a6-296b3e3dbdce	maceracion	dorso_izquierdo	0.526	0.261	b62bc836-6082-4990-929f-77e33b5c8ad0	6c44e891-1687-486f-98d7-02fe2ef3425e	2026-10-12 16:00:00-03	49b5fa10-4460-4996-84e7-1cba87786aa8	2026-11-04 14:30:00-03	
+b44265c7-3b51-437b-a247-4ccb5ece38d0	maceracion	dorso_izquierdo	0.356	0.585	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	7c34d0bd-0f3c-465a-bc6d-e4fe8a996387	2026-11-05 16:00:00-03	\N	\N	
+02e9a137-0158-489a-a13a-5255d2a33c3d	hallux_valgus_incipiente	dorso_derecho	0.38	0.551	1fa5294c-d4b3-4335-ad4d-05b3a2644667	a676c8fe-3ad9-4215-b0d8-d862684cec36	2026-11-05 14:30:00-03	\N	\N	
+01c381ea-8ed8-496a-8527-df8361985300	paciente_diabetico	dorso_derecho	0.44	0.716	1fa5294c-d4b3-4335-ad4d-05b3a2644667	9d6ef23d-b8f9-461a-b7a5-169768f33935	2026-11-06 12:15:00-03	\N	\N	
+5f46335b-baf5-47b7-a500-d5e5cf567dda	dedo_en_garra	dorso_derecho	0.481	0.354	202ab4f9-2746-4abe-977e-4e43b4e1318b	23459a64-ef94-4aa7-9946-eb1b88e6c344	2026-11-09 09:45:00-03	\N	\N	
+4bc0eb34-bda4-49c0-a3f5-5dc6c2c1fde9	heloma_millar	planta_izquierdo	0.471	0.347	9cfdbd01-90db-477d-8a61-a358f14a6dda	c64db89d-9534-4004-b628-956cb414bf21	2026-10-19 14:45:00-03	08a06074-e756-45fd-861e-6c25f464d30a	2026-11-10 14:45:00-03	
+c30033c5-e83c-41aa-9135-c7ed9ce46bb2	heloma_millar	dorso_derecho	0.479	0.431	1fa5294c-d4b3-4335-ad4d-05b3a2644667	e60784d2-bb88-4404-9e6c-3fa2aeaaa7e1	2026-10-19 17:00:00-03	540cf354-9b76-4463-8005-21a861d54dfa	2026-11-11 11:00:00-03	
+8b78609f-c11b-4099-bc5f-35d8bc0fd2d1	hallux_valgus_pronunciado	dorso_izquierdo	0.559	0.65	b62bc836-6082-4990-929f-77e33b5c8ad0	898f74d7-15ef-44d9-81d3-f9fdc9e6b481	2026-11-13 12:15:00-03	\N	\N	
+dc743b49-0d31-4b53-92b0-1df0467670f8	heloma_interdigital	dorso_izquierdo	0.611	0.796	b62bc836-6082-4990-929f-77e33b5c8ad0	9cea6027-cafb-4d09-bf5e-d23b222b8027	2026-11-13 15:45:00-03	\N	\N	
+757a0504-782a-469d-957c-9efb1d8fbfad	hallux_valgus_pronunciado	dorso_izquierdo	0.483	0.288	202ab4f9-2746-4abe-977e-4e43b4e1318b	a048015d-ffd3-4843-a0bb-f136ff0c3a0c	2026-11-05 17:00:00-03	ecdedb12-2075-41b3-9cf9-9ca13c9700e5	2026-11-13 15:45:00-03	
+59c5bd2d-9dc9-43b3-a43a-3cb6e46d4cfc	heloma_millar	planta_derecho	0.622	0.687	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	adbcfc41-466d-409e-94c0-7ee2ad53162c	2026-11-17 17:15:00-03	\N	\N	
+f04627bf-6e71-4bb9-9037-78703849b03e	heloma_interdigital	planta_derecho	0.486	0.566	b62bc836-6082-4990-929f-77e33b5c8ad0	3912678b-99b6-46ea-824e-5e9ebc9245f6	2026-11-18 14:45:00-03	\N	\N	
+61ba4be2-4323-4624-adf2-0ec4f2fb3f9d	heloma_millar	planta_izquierdo	0.507	0.333	202ab4f9-2746-4abe-977e-4e43b4e1318b	02468245-5471-423e-b95c-7a133efb0b16	2026-11-18 11:15:00-03	\N	\N	
+2b83b3bd-2f53-41b9-b174-0bbaec554e70	hallux_valgus_incipiente	planta_izquierdo	0.64	0.722	202ab4f9-2746-4abe-977e-4e43b4e1318b	78a565f5-4bfe-4d2c-8b1b-6784cab17a21	2026-11-18 17:30:00-03	\N	\N	
+1fee1ed9-6f17-4332-be60-5b3f8c0c459b	paciente_diabetico	planta_izquierdo	0.54	0.47	9cfdbd01-90db-477d-8a61-a358f14a6dda	c0373e13-4bef-4f1e-9be4-e8211b7b9357	2026-10-20 14:45:00-03	3849ca15-6555-4a4f-81a8-828e427c0ce6	2026-11-19 09:45:00-03	
+2761cabc-c440-4a38-b109-9a6417f03439	hallux_valgus_pronunciado	dorso_izquierdo	0.555	0.465	9cfdbd01-90db-477d-8a61-a358f14a6dda	e1ca39b8-4854-4318-95af-9b94435d6205	2026-11-19 12:15:00-03	\N	\N	
+9c7a8a60-4cd2-47ab-8665-eb79d8e2a408	hallux_valgus_incipiente	dorso_derecho	0.43	0.466	1fa5294c-d4b3-4335-ad4d-05b3a2644667	2744c542-439e-4037-b473-f7294c48c0af	2026-11-19 09:45:00-03	\N	\N	
+10e66613-582f-47db-b883-3f307cee63f5	maceracion	planta_izquierdo	0.512	0.784	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	e49c6e7b-8558-44e3-85f1-b319489c5d24	2026-10-15 17:15:00-03	6117f7cd-3584-4504-ba4b-b71fa8d7afba	2026-11-20 09:45:00-03	
+cf8fc0ab-a917-467b-9f83-a8c170f1ad9c	maceracion	dorso_derecho	0.532	0.526	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	92ef73cc-3fb0-4054-ae0d-b568a830c398	2026-11-05 09:45:00-03	6f2fa34c-600b-486b-8c97-f9bf2e74cb21	2026-11-20 12:15:00-03	
+fd6cefd1-7264-4b59-a525-4733ae5c9f4b	heloma_millar	dorso_izquierdo	0.589	0.546	202ab4f9-2746-4abe-977e-4e43b4e1318b	b5ecbced-4242-496f-a4ed-7f9d8f32a7d4	2026-11-20 14:45:00-03	\N	\N	
+305aaca0-a2e9-4be1-b64f-15bb633c5e18	hallux_valgus_pronunciado	planta_izquierdo	0.471	0.643	202ab4f9-2746-4abe-977e-4e43b4e1318b	4a41f86c-a0f3-4178-9077-534a738cf64f	2026-11-20 17:00:00-03	\N	\N	
+bf739b0f-a824-4bae-b976-427951aed240	hallux_valgus_pronunciado	planta_izquierdo	0.637	0.255	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	07432764-e1b0-48ae-80ec-49cd3e6d43dd	2026-11-23 12:00:00-03	\N	\N	
+c0ecf408-584f-4b27-b115-2ec7eac11efb	maceracion	dorso_izquierdo	0.477	0.49	1fa5294c-d4b3-4335-ad4d-05b3a2644667	c4bae37b-2544-4ece-a410-b599193111a5	2026-11-23 11:00:00-03	\N	\N	
+5851c5d5-fd71-4380-85ff-34059e3fee9d	paciente_diabetico	dorso_derecho	0.597	0.511	0cd80f72-d557-43bc-9a12-1fd8d0ce082c	a47cbb3a-80df-4428-9b75-3ddec5e6c9ed	2026-11-04 11:00:00-03	da6577d9-cc94-49ef-8fcb-56485da18506	2026-11-24 11:00:00-03	
+97507eec-1635-46ed-a2d8-fc0573e3b531	hallux_valgus_incipiente	dorso_izquierdo	0.558	0.597	9cfdbd01-90db-477d-8a61-a358f14a6dda	cbde6602-87fe-4e21-b68a-fa39ff3d82f7	2026-11-24 12:00:00-03	\N	\N	
+dcf72f5f-fa68-4885-a0ac-7c184f7e7129	hallux_valgus_incipiente	dorso_izquierdo	0.635	0.396	1fa5294c-d4b3-4335-ad4d-05b3a2644667	7b5f0adc-8ac8-4199-baba-3448c99fb705	2026-11-24 10:00:00-03	\N	\N	
+\.
+
+
+--
+-- Data for Name: cuentas_certificacion; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.cuentas_certificacion (id, nombre, institucion, anio, documento, documento_tipo, documento_nombre, verificada, verificada_en, creada_en, profesional_id, verificada_por_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: cuentas_codigorespaldo; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.cuentas_codigorespaldo (id, huella, usado_en, creado_en, usuario_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: cuentas_paciente; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.cuentas_paciente (usuario_id, rut, fecha_nacimiento, direccion, comuna, actividad, telefono_contacto) FROM stdin;
+fb274a47-fb14-47e1-b3f3-f2c564a4ee91	11222333-9	1958-04-12	Calle de prueba 221	Providencia	Profesora jubilada	+56 9 3333 4444
+926ee2d7-1575-4b18-9db6-367e2533fb11	12333444-2	1971-09-03	Calle de prueba 427	Ñuñoa	Conductor	+56 9 3333 4444
+cfd9381d-db9c-47eb-884b-6e92b6666b65	15444555-2	1985-01-27	Calle de prueba 614	Santiago	Enfermera	+56 9 3333 4444
+355a1a38-97ef-4c9f-85b1-46131401279e	9555666-3	1949-11-08	Calle de prueba 624	La Reina	Jubilado	+56 9 3333 4444
+f8dae367-05d4-461c-8e5b-da0374c47bc2	17666777-K	1992-06-15	Calle de prueba 762	Macul	Diseñadora	+56 9 3333 4444
+\.
+
+
+--
+-- Data for Name: cuentas_profesional; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.cuentas_profesional (usuario_id, especialidad, numero_colegiado, pausa_entre_citas_min, descripcion, anio_titulo, foto, foto_actualizada_en, institucion_titulo, titulo) FROM stdin;
+52fe51c4-557f-4319-a459-1c5a9581f577	Podología clínica	DEMO-ROJAS	15		\N	\N	\N		
+0609d85f-d93f-40fa-b242-ca8639315999	Podología geriátrica	DEMO-FUENTES	15		\N	\N	\N		
+\.
+
+
+--
+-- Data for Name: cuentas_profesional_tratamientos; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.cuentas_profesional_tratamientos (id, profesional_id, tratamiento_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: cuentas_registropendiente; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.cuentas_registropendiente (id, email, datos, password_hash, token_hash, siguiente, creado_en, vence_en) FROM stdin;
+\.
+
+
+--
+-- Data for Name: cuentas_usuario; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.cuentas_usuario (password, last_login, is_superuser, id, email, nombre, apellido, rol, is_active, is_staff, fecha_registro, telefono) FROM stdin;
+argon2$argon2id$v=19$m=102400,t=2,p=8$M05TaEs3dHp3YW1jZlRxd2tPRFdReg$CIcSfwmZAfzvuYYha6LZNooHBpjaMVgqF+krlB4wSY4	\N	f	52fe51c4-557f-4319-a459-1c5a9581f577	podologa.demo@example.com	Camila	Rojas	profesional	t	f	2026-11-25 00:34:56.389292-03	+56 9 5555 0000
+argon2$argon2id$v=19$m=102400,t=2,p=8$Nm5VT3BkUVpLVkZGWjVWSHExWTBqZA$XlsfVLJULylQP6/jV5hFqQspSgcLv9m5JiSr5fEEHB4	\N	f	0609d85f-d93f-40fa-b242-ca8639315999	podologo.demo@example.com	Tomás	Fuentes	profesional	t	f	2026-11-25 00:34:56.467792-03	+56 9 5555 0000
+argon2$argon2id$v=19$m=102400,t=2,p=8$aWpMdHJ2NndXU1lQNWhWR2ZTQW5jWA$DNnlNRopiW3wBl35IKmIcwzatXbNkMcvVEWY9shnnlI	\N	f	fb274a47-fb14-47e1-b3f3-f2c564a4ee91	maria.gonzalez@example.com	María	González	paciente	t	f	2026-11-25 00:34:56.535203-03	+56 9 1111 2222
+argon2$argon2id$v=19$m=102400,t=2,p=8$WnpUeTdEUGdkTFMxbUpnclhiM2w1Yw$pGObX/QfTIsYmGRuYGFHMVWMQ/nLg9+EO0+13CFszxU	\N	f	926ee2d7-1575-4b18-9db6-367e2533fb11	pedro.ramirez@example.com	Pedro	Ramírez	paciente	t	f	2026-11-25 00:34:56.597158-03	+56 9 1111 2222
+argon2$argon2id$v=19$m=102400,t=2,p=8$YzZJT0M0cjU2TUdSRDd1NFZHSDFDUA$Dw7/Hw9i1qZLPfYGzDAoWUbO1JAGNxm/n6VLrYFpfoY	\N	f	cfd9381d-db9c-47eb-884b-6e92b6666b65	ana.torres@example.com	Ana	Torres	paciente	t	f	2026-11-25 00:34:56.660958-03	+56 9 1111 2222
+argon2$argon2id$v=19$m=102400,t=2,p=8$dVluYnJGT05lcXlJTXlrQ0VFTzZ4YQ$Lxx/P2ymCHsgvpMulox7Rz+3FJfQ8l+4qwMFQTu4Np4	\N	f	355a1a38-97ef-4c9f-85b1-46131401279e	luis.morales@example.com	Luis	Morales	paciente	t	f	2026-11-25 00:34:56.719528-03	+56 9 1111 2222
+argon2$argon2id$v=19$m=102400,t=2,p=8$a3QyR2cxYnBnUUprdVF0SGpRUzJyUQ$hvyNUpVuhC9swJrB2j0f9frU6EEkCJFA/AYyRHgGAAw	\N	f	f8dae367-05d4-461c-8e5b-da0374c47bc2	carmen.diaz@example.com	Carmen	Díaz	paciente	t	f	2026-11-25 00:34:56.781068-03	+56 9 1111 2222
+\.
+
+
+--
+-- Data for Name: cuentas_usuario_groups; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.cuentas_usuario_groups (id, usuario_id, group_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: cuentas_usuario_user_permissions; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.cuentas_usuario_user_permissions (id, usuario_id, permission_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: django_admin_log; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.django_admin_log (id, action_time, object_id, object_repr, action_flag, change_message, content_type_id, user_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: django_content_type; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.django_content_type (id, app_label, model) FROM stdin;
+1	admin	logentry
+2	auth	permission
+3	auth	group
+4	contenttypes	contenttype
+5	sessions	session
+6	otp_totp	totpdevice
+7	cuentas	usuario
+8	cuentas	paciente
+9	cuentas	profesional
+10	cuentas	certificacion
+11	cuentas	registropendiente
+12	cuentas	codigorespaldo
+13	cuentas	dispositivoverificacion
+14	agenda	tratamiento
+15	agenda	disponibilidad
+16	agenda	cita
+17	agenda	bloqueohorario
+18	agenda	notificacion
+19	clinica	consentimiento
+20	clinica	fichaclinica
+21	clinica	atencionclinica
+22	clinica	derivacion
+23	clinica	marcapie
+24	chatbot	conversacionchatbot
+25	chatbot	interaccionchatbot
+26	chatbot	fotochatbot
+27	auditoria	registroauditoria
+28	pagos	pago
+\.
+
+
+--
+-- Data for Name: django_migrations; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.django_migrations (id, app, name, applied) FROM stdin;
+1	contenttypes	0001_initial	2026-11-25 00:34:52.65949-03
+2	contenttypes	0002_remove_content_type_name	2026-11-25 00:34:52.666552-03
+3	auth	0001_initial	2026-11-25 00:34:52.705153-03
+4	auth	0002_alter_permission_name_max_length	2026-11-25 00:34:52.709152-03
+5	auth	0003_alter_user_email_max_length	2026-11-25 00:34:52.712914-03
+6	auth	0004_alter_user_username_opts	2026-11-25 00:34:52.716764-03
+7	auth	0005_alter_user_last_login_null	2026-11-25 00:34:52.720622-03
+8	auth	0006_require_contenttypes_0002	2026-11-25 00:34:52.722221-03
+9	auth	0007_alter_validators_add_error_messages	2026-11-25 00:34:52.726803-03
+10	auth	0008_alter_user_username_max_length	2026-11-25 00:34:52.732008-03
+11	auth	0009_alter_user_last_name_max_length	2026-11-25 00:34:52.736441-03
+12	auth	0010_alter_group_name_max_length	2026-11-25 00:34:52.742598-03
+13	auth	0011_update_proxy_permissions	2026-11-25 00:34:52.746689-03
+14	auth	0012_alter_user_first_name_max_length	2026-11-25 00:34:52.750499-03
+15	cuentas	0001_initial	2026-11-25 00:34:52.785122-03
+16	admin	0001_initial	2026-11-25 00:34:52.802438-03
+17	admin	0002_logentry_remove_auto_add	2026-11-25 00:34:52.810819-03
+18	admin	0003_logentry_add_action_flag_choices	2026-11-25 00:34:52.817345-03
+19	cuentas	0002_perfiles_y_rol_admin	2026-11-25 00:34:52.862541-03
+20	cuentas	0003_ficha_del_paciente	2026-11-25 00:34:52.883646-03
+21	agenda	0001_extension_btree_gist	2026-11-25 00:34:52.916498-03
+22	agenda	0002_initial	2026-11-25 00:34:52.934572-03
+23	agenda	0003_disponibilidad	2026-11-25 00:34:52.954219-03
+24	agenda	0004_cita	2026-11-25 00:34:52.983261-03
+25	agenda	0005_cita_sin_direccion	2026-11-25 00:34:52.989686-03
+26	agenda	0006_bloqueo_horario	2026-11-25 00:34:53.006788-03
+27	agenda	0007_notificacion	2026-11-25 00:34:53.0329-03
+28	agenda	0008_cita_pendiente_pago	2026-11-25 00:34:53.040891-03
+29	agenda	0009_tratamiento_descripcion_detallada	2026-11-25 00:34:53.047457-03
+30	agenda	0010_descripciones_tratamientos_demo	2026-11-25 00:34:53.061817-03
+31	auditoria	0001_initial	2026-11-25 00:34:53.088076-03
+32	auditoria	0002_solo_escritura	2026-11-25 00:34:53.090705-03
+33	auditoria	0003_accion_cancelar_cita	2026-11-25 00:34:53.097818-03
+34	auditoria	0004_accion_reservar_cita	2026-11-25 00:34:53.104946-03
+35	auditoria	0005_accion_reagendar_cita	2026-11-25 00:34:53.113228-03
+36	auditoria	0006_acciones_clinicas	2026-11-25 00:34:53.12566-03
+37	auditoria	0007_correcciones_y_accesos_denegados	2026-11-25 00:34:53.187353-03
+38	auditoria	0008_indice_accion_fecha	2026-11-25 00:34:53.197864-03
+39	auditoria	0009_acciones_de_pago	2026-11-25 00:34:53.204583-03
+40	auditoria	0010_acciones_de_cuenta	2026-11-25 00:34:53.211874-03
+41	auditoria	0011_acciones_de_baja_y_certificacion	2026-11-25 00:34:53.221198-03
+42	auditoria	0012_accion_restablecer_clave	2026-11-25 00:34:53.229372-03
+43	auditoria	0013_acciones_dos_pasos	2026-11-25 00:34:53.236595-03
+44	cuentas	0004_estado_civil_y_quien_deriva	2026-11-25 00:34:53.254644-03
+45	cuentas	0005_sin_estado_civil_ni_quien_deriva	2026-11-25 00:34:53.269453-03
+46	chatbot	0001_initial	2026-11-25 00:34:53.33934-03
+47	chatbot	0002_nombres_en_el_panel	2026-11-25 00:34:53.424306-03
+48	clinica	0001_initial	2026-11-25 00:34:53.447384-03
+49	clinica	0002_sin_atencion_domicilio	2026-11-25 00:34:53.453243-03
+50	clinica	0003_ficha_atencion_derivacion	2026-11-25 00:34:53.53897-03
+51	clinica	0004_campos_de_la_ficha_en_papel	2026-11-25 00:34:53.565475-03
+52	clinica	0005_antecedentes_morbidos_y_correcciones	2026-11-25 00:34:53.749945-03
+53	clinica	0006_sin_cesfam	2026-11-25 00:34:53.767744-03
+54	clinica	0007_marcas_en_los_pies	2026-11-25 00:34:53.791662-03
+55	clinica	0008_marcas_de_la_ficha	2026-11-25 00:34:53.881672-03
+56	clinica	0009_pasar_marcas_a_la_ficha	2026-11-25 00:34:53.898636-03
+57	clinica	0010_marcas_de_la_ficha_obligatorias	2026-11-25 00:34:54.065704-03
+58	otp_totp	0001_initial	2026-11-25 00:34:54.092926-03
+59	otp_totp	0002_auto_20190420_0723	2026-11-25 00:34:54.109793-03
+60	otp_totp	0003_add_timestamps	2026-11-25 00:34:54.127544-03
+61	cuentas	0006_perfil_profesional_y_certificaciones	2026-11-25 00:34:54.249183-03
+62	cuentas	0007_registro_pendiente	2026-11-25 00:34:54.265308-03
+63	cuentas	0008_tabla_de_cache	2026-11-25 00:34:54.291897-03
+64	cuentas	0009_codigos_de_respaldo	2026-11-25 00:34:54.318172-03
+65	cuentas	0010_dispositivo_de_verificacion	2026-11-25 00:34:54.323658-03
+66	pagos	0001_initial	2026-11-25 00:34:54.364436-03
+67	pagos	0002_por_verificar_y_reembolso_en_curso	2026-11-25 00:34:54.386941-03
+68	pagos	0003_token_reciente_y_anteriores	2026-11-25 00:34:54.404957-03
+69	sessions	0001_initial	2026-11-25 00:34:54.416683-03
+\.
+
+
+--
+-- Data for Name: otp_totp_totpdevice; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.otp_totp_totpdevice (id, name, confirmed, key, step, t0, digits, tolerance, drift, last_t, user_id, throttling_failure_count, throttling_failure_timestamp, created_at, last_used_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: pagos_pago; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.pagos_pago (id, monto, orden_compra, token, url_webpay, estado, vence_en, codigo_respuesta, codigo_autorizacion, tipo_pago, cuotas, tarjeta_final, fecha_transaccion, creado_en, confirmado_en, reembolsado_en, tipo_reembolso, intentos_reembolso, error, cita_id, motivo_reembolso, reembolso_iniciado_en, token_creado_en, tokens_anteriores) FROM stdin;
+\.
+
+
+--
+-- Name: auth_group_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.auth_group_id_seq', 1, false);
+
+
+--
+-- Name: auth_group_permissions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.auth_group_permissions_id_seq', 1, false);
+
+
+--
+-- Name: auth_permission_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.auth_permission_id_seq', 112, true);
+
+
+--
+-- Name: cuentas_profesional_tratamientos_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.cuentas_profesional_tratamientos_id_seq', 1, false);
+
+
+--
+-- Name: cuentas_usuario_groups_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.cuentas_usuario_groups_id_seq', 1, false);
+
+
+--
+-- Name: cuentas_usuario_user_permissions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.cuentas_usuario_user_permissions_id_seq', 1, false);
+
+
+--
+-- Name: django_admin_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.django_admin_log_id_seq', 1, false);
+
+
+--
+-- Name: django_content_type_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.django_content_type_id_seq', 28, true);
+
+
+--
+-- Name: django_migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.django_migrations_id_seq', 69, true);
+
+
+--
+-- Name: otp_totp_totpdevice_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.otp_totp_totpdevice_id_seq', 1, false);
+
+
+--
+-- Name: agenda_bloqueohorario agenda_bloqueohorario_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_bloqueohorario
+    ADD CONSTRAINT agenda_bloqueohorario_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agenda_cita agenda_cita_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_cita
+    ADD CONSTRAINT agenda_cita_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agenda_disponibilidad agenda_disponibilidad_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_disponibilidad
+    ADD CONSTRAINT agenda_disponibilidad_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agenda_notificacion agenda_notificacion_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_notificacion
+    ADD CONSTRAINT agenda_notificacion_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agenda_tratamiento agenda_tratamiento_nombre_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_tratamiento
+    ADD CONSTRAINT agenda_tratamiento_nombre_key UNIQUE (nombre);
+
+
+--
+-- Name: agenda_tratamiento agenda_tratamiento_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_tratamiento
+    ADD CONSTRAINT agenda_tratamiento_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: auditoria_registroauditoria auditoria_registroauditoria_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auditoria_registroauditoria
+    ADD CONSTRAINT auditoria_registroauditoria_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: auth_group auth_group_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_group
+    ADD CONSTRAINT auth_group_name_key UNIQUE (name);
+
+
+--
+-- Name: auth_group_permissions auth_group_permissions_group_id_permission_id_0cd325b0_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_group_permissions
+    ADD CONSTRAINT auth_group_permissions_group_id_permission_id_0cd325b0_uniq UNIQUE (group_id, permission_id);
+
+
+--
+-- Name: auth_group_permissions auth_group_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_group_permissions
+    ADD CONSTRAINT auth_group_permissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: auth_group auth_group_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_group
+    ADD CONSTRAINT auth_group_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: auth_permission auth_permission_content_type_id_codename_01ab375a_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_permission
+    ADD CONSTRAINT auth_permission_content_type_id_codename_01ab375a_uniq UNIQUE (content_type_id, codename);
+
+
+--
+-- Name: auth_permission auth_permission_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_permission
+    ADD CONSTRAINT auth_permission_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cache_mypodo cache_mypodo_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cache_mypodo
+    ADD CONSTRAINT cache_mypodo_pkey PRIMARY KEY (cache_key);
+
+
+--
+-- Name: chatbot_conversacionchatbot chatbot_conversacionchatbot_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chatbot_conversacionchatbot
+    ADD CONSTRAINT chatbot_conversacionchatbot_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: chatbot_fotochatbot chatbot_fotochatbot_interaccion_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chatbot_fotochatbot
+    ADD CONSTRAINT chatbot_fotochatbot_interaccion_id_key UNIQUE (interaccion_id);
+
+
+--
+-- Name: chatbot_fotochatbot chatbot_fotochatbot_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chatbot_fotochatbot
+    ADD CONSTRAINT chatbot_fotochatbot_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: chatbot_interaccionchatbot chatbot_interaccionchatbot_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chatbot_interaccionchatbot
+    ADD CONSTRAINT chatbot_interaccionchatbot_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agenda_cita cita_paciente_sin_solapamiento; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_cita
+    ADD CONSTRAINT cita_paciente_sin_solapamiento EXCLUDE USING gist (paciente_id WITH =, tstzrange(inicio, fin, '[)'::text) WITH &&) WHERE ((NOT ((estado)::text = 'cancelada'::text)));
+
+
+--
+-- Name: agenda_cita cita_profesional_sin_solapamiento; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_cita
+    ADD CONSTRAINT cita_profesional_sin_solapamiento EXCLUDE USING gist (profesional_id WITH =, tstzrange(inicio, fin, '[)'::text) WITH &&) WHERE ((NOT ((estado)::text = 'cancelada'::text)));
+
+
+--
+-- Name: clinica_atencionclinica clinica_atencionclinica_cita_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_atencionclinica
+    ADD CONSTRAINT clinica_atencionclinica_cita_id_key UNIQUE (cita_id);
+
+
+--
+-- Name: clinica_atencionclinica clinica_atencionclinica_corrige_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_atencionclinica
+    ADD CONSTRAINT clinica_atencionclinica_corrige_id_key UNIQUE (corrige_id);
+
+
+--
+-- Name: clinica_atencionclinica clinica_atencionclinica_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_atencionclinica
+    ADD CONSTRAINT clinica_atencionclinica_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinica_consentimiento clinica_consentimiento_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_consentimiento
+    ADD CONSTRAINT clinica_consentimiento_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinica_derivacion clinica_derivacion_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_derivacion
+    ADD CONSTRAINT clinica_derivacion_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinica_fichaclinica clinica_fichaclinica_paciente_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_fichaclinica
+    ADD CONSTRAINT clinica_fichaclinica_paciente_id_key UNIQUE (paciente_id);
+
+
+--
+-- Name: clinica_fichaclinica clinica_fichaclinica_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_fichaclinica
+    ADD CONSTRAINT clinica_fichaclinica_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinica_marcapie clinica_marcapie_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_marcapie
+    ADD CONSTRAINT clinica_marcapie_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cuentas_codigorespaldo codigo_respaldo_unico; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_codigorespaldo
+    ADD CONSTRAINT codigo_respaldo_unico UNIQUE (usuario_id, huella);
+
+
+--
+-- Name: cuentas_certificacion cuentas_certificacion_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_certificacion
+    ADD CONSTRAINT cuentas_certificacion_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cuentas_codigorespaldo cuentas_codigorespaldo_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_codigorespaldo
+    ADD CONSTRAINT cuentas_codigorespaldo_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cuentas_paciente cuentas_paciente_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_paciente
+    ADD CONSTRAINT cuentas_paciente_pkey PRIMARY KEY (usuario_id);
+
+
+--
+-- Name: cuentas_paciente cuentas_paciente_rut_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_paciente
+    ADD CONSTRAINT cuentas_paciente_rut_key UNIQUE (rut);
+
+
+--
+-- Name: cuentas_profesional cuentas_profesional_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_profesional
+    ADD CONSTRAINT cuentas_profesional_pkey PRIMARY KEY (usuario_id);
+
+
+--
+-- Name: cuentas_profesional_tratamientos cuentas_profesional_trat_profesional_id_tratamien_fbffe947_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_profesional_tratamientos
+    ADD CONSTRAINT cuentas_profesional_trat_profesional_id_tratamien_fbffe947_uniq UNIQUE (profesional_id, tratamiento_id);
+
+
+--
+-- Name: cuentas_profesional_tratamientos cuentas_profesional_tratamientos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_profesional_tratamientos
+    ADD CONSTRAINT cuentas_profesional_tratamientos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cuentas_registropendiente cuentas_registropendiente_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_registropendiente
+    ADD CONSTRAINT cuentas_registropendiente_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cuentas_registropendiente cuentas_registropendiente_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_registropendiente
+    ADD CONSTRAINT cuentas_registropendiente_token_hash_key UNIQUE (token_hash);
+
+
+--
+-- Name: cuentas_usuario cuentas_usuario_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario
+    ADD CONSTRAINT cuentas_usuario_email_key UNIQUE (email);
+
+
+--
+-- Name: cuentas_usuario_groups cuentas_usuario_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario_groups
+    ADD CONSTRAINT cuentas_usuario_groups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cuentas_usuario_groups cuentas_usuario_groups_usuario_id_group_id_f5ef6c73_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario_groups
+    ADD CONSTRAINT cuentas_usuario_groups_usuario_id_group_id_f5ef6c73_uniq UNIQUE (usuario_id, group_id);
+
+
+--
+-- Name: cuentas_usuario cuentas_usuario_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario
+    ADD CONSTRAINT cuentas_usuario_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: cuentas_usuario_user_permissions cuentas_usuario_user_per_usuario_id_permission_id_26c0acea_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario_user_permissions
+    ADD CONSTRAINT cuentas_usuario_user_per_usuario_id_permission_id_26c0acea_uniq UNIQUE (usuario_id, permission_id);
+
+
+--
+-- Name: cuentas_usuario_user_permissions cuentas_usuario_user_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario_user_permissions
+    ADD CONSTRAINT cuentas_usuario_user_permissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: agenda_disponibilidad disponibilidad_sin_solapamiento; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_disponibilidad
+    ADD CONSTRAINT disponibilidad_sin_solapamiento EXCLUDE USING gist (profesional_id WITH =, dia_semana WITH =, tsrange(('2000-01-01'::date + hora_inicio), ('2000-01-01'::date + hora_fin), '[)'::text) WITH &&) WHERE (activa);
+
+
+--
+-- Name: django_admin_log django_admin_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.django_admin_log
+    ADD CONSTRAINT django_admin_log_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: django_content_type django_content_type_app_label_model_76bd3d3b_uniq; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.django_content_type
+    ADD CONSTRAINT django_content_type_app_label_model_76bd3d3b_uniq UNIQUE (app_label, model);
+
+
+--
+-- Name: django_content_type django_content_type_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.django_content_type
+    ADD CONSTRAINT django_content_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: django_migrations django_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.django_migrations
+    ADD CONSTRAINT django_migrations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: django_session django_session_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.django_session
+    ADD CONSTRAINT django_session_pkey PRIMARY KEY (session_key);
+
+
+--
+-- Name: otp_totp_totpdevice otp_totp_totpdevice_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.otp_totp_totpdevice
+    ADD CONSTRAINT otp_totp_totpdevice_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pagos_pago pagos_pago_cita_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagos_pago
+    ADD CONSTRAINT pagos_pago_cita_id_key UNIQUE (cita_id);
+
+
+--
+-- Name: pagos_pago pagos_pago_orden_compra_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagos_pago
+    ADD CONSTRAINT pagos_pago_orden_compra_key UNIQUE (orden_compra);
+
+
+--
+-- Name: pagos_pago pagos_pago_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagos_pago
+    ADD CONSTRAINT pagos_pago_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pagos_pago pagos_pago_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagos_pago
+    ADD CONSTRAINT pagos_pago_token_key UNIQUE (token);
+
+
+--
+-- Name: agenda_bloqueohorario_profesional_id_0ece6946; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agenda_bloqueohorario_profesional_id_0ece6946 ON public.agenda_bloqueohorario USING btree (profesional_id);
+
+
+--
+-- Name: agenda_cita_paciente_id_c031df85; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agenda_cita_paciente_id_c031df85 ON public.agenda_cita USING btree (paciente_id);
+
+
+--
+-- Name: agenda_cita_profesional_id_b9f89aca; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agenda_cita_profesional_id_b9f89aca ON public.agenda_cita USING btree (profesional_id);
+
+
+--
+-- Name: agenda_cita_tratamiento_id_339d5b2a; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agenda_cita_tratamiento_id_339d5b2a ON public.agenda_cita USING btree (tratamiento_id);
+
+
+--
+-- Name: agenda_disponibilidad_profesional_id_8c0b8fc4; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agenda_disponibilidad_profesional_id_8c0b8fc4 ON public.agenda_disponibilidad USING btree (profesional_id);
+
+
+--
+-- Name: agenda_notificacion_cita_id_9c27e2a4; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agenda_notificacion_cita_id_9c27e2a4 ON public.agenda_notificacion USING btree (cita_id);
+
+
+--
+-- Name: agenda_notificacion_destinatario_id_b343b730; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agenda_notificacion_destinatario_id_b343b730 ON public.agenda_notificacion USING btree (destinatario_id);
+
+
+--
+-- Name: agenda_tratamiento_nombre_3b32e701_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX agenda_tratamiento_nombre_3b32e701_like ON public.agenda_tratamiento USING btree (nombre varchar_pattern_ops);
+
+
+--
+-- Name: atencion_ficha_fecha_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX atencion_ficha_fecha_idx ON public.clinica_atencionclinica USING btree (ficha_id, fecha);
+
+
+--
+-- Name: audit_accion_fecha_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX audit_accion_fecha_idx ON public.auditoria_registroauditoria USING btree (accion, fecha);
+
+
+--
+-- Name: audit_recurso_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX audit_recurso_idx ON public.auditoria_registroauditoria USING btree (recurso_tipo, recurso_id);
+
+
+--
+-- Name: audit_usuario_fecha_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX audit_usuario_fecha_idx ON public.auditoria_registroauditoria USING btree (usuario_id, fecha);
+
+
+--
+-- Name: auditoria_registroauditoria_usuario_id_5900964c; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX auditoria_registroauditoria_usuario_id_5900964c ON public.auditoria_registroauditoria USING btree (usuario_id);
+
+
+--
+-- Name: auth_group_name_a6ea08ec_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX auth_group_name_a6ea08ec_like ON public.auth_group USING btree (name varchar_pattern_ops);
+
+
+--
+-- Name: auth_group_permissions_group_id_b120cbf9; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX auth_group_permissions_group_id_b120cbf9 ON public.auth_group_permissions USING btree (group_id);
+
+
+--
+-- Name: auth_group_permissions_permission_id_84c5c92e; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX auth_group_permissions_permission_id_84c5c92e ON public.auth_group_permissions USING btree (permission_id);
+
+
+--
+-- Name: auth_permission_content_type_id_2f476e4b; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX auth_permission_content_type_id_2f476e4b ON public.auth_permission USING btree (content_type_id);
+
+
+--
+-- Name: bloqueo_profesional_inicio_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX bloqueo_profesional_inicio_idx ON public.agenda_bloqueohorario USING btree (profesional_id, inicio);
+
+
+--
+-- Name: cache_mypodo_expires; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cache_mypodo_expires ON public.cache_mypodo USING btree (expires);
+
+
+--
+-- Name: chatbot_categoria_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX chatbot_categoria_idx ON public.chatbot_interaccionchatbot USING btree (categoria_triaje, creada_en);
+
+
+--
+-- Name: chatbot_conv_fecha_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX chatbot_conv_fecha_idx ON public.chatbot_interaccionchatbot USING btree (conversacion_id, creada_en);
+
+
+--
+-- Name: chatbot_conversacionchatbot_paciente_id_d9b1a3c9; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX chatbot_conversacionchatbot_paciente_id_d9b1a3c9 ON public.chatbot_conversacionchatbot USING btree (paciente_id);
+
+
+--
+-- Name: chatbot_interaccionchatbot_conversacion_id_613e53b2; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX chatbot_interaccionchatbot_conversacion_id_613e53b2 ON public.chatbot_interaccionchatbot USING btree (conversacion_id);
+
+
+--
+-- Name: chatbot_interaccionchatbot_paciente_id_4cd3d01f; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX chatbot_interaccionchatbot_paciente_id_4cd3d01f ON public.chatbot_interaccionchatbot USING btree (paciente_id);
+
+
+--
+-- Name: cita_paciente_inicio_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cita_paciente_inicio_idx ON public.agenda_cita USING btree (paciente_id, inicio);
+
+
+--
+-- Name: cita_profesional_inicio_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cita_profesional_inicio_idx ON public.agenda_cita USING btree (profesional_id, inicio);
+
+
+--
+-- Name: clinica_atencionclinica_ficha_id_209a4b6b; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinica_atencionclinica_ficha_id_209a4b6b ON public.clinica_atencionclinica USING btree (ficha_id);
+
+
+--
+-- Name: clinica_atencionclinica_profesional_id_321ae7e4; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinica_atencionclinica_profesional_id_321ae7e4 ON public.clinica_atencionclinica USING btree (profesional_id);
+
+
+--
+-- Name: clinica_consentimiento_paciente_id_c9546447; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinica_consentimiento_paciente_id_c9546447 ON public.clinica_consentimiento USING btree (paciente_id);
+
+
+--
+-- Name: clinica_derivacion_atencion_id_413c173a; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinica_derivacion_atencion_id_413c173a ON public.clinica_derivacion USING btree (atencion_id);
+
+
+--
+-- Name: clinica_marcapie_atencion_alta_id_eb403986; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinica_marcapie_atencion_alta_id_eb403986 ON public.clinica_marcapie USING btree (atencion_alta_id);
+
+
+--
+-- Name: clinica_marcapie_atencion_baja_id_d9277d82; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinica_marcapie_atencion_baja_id_d9277d82 ON public.clinica_marcapie USING btree (atencion_baja_id);
+
+
+--
+-- Name: clinica_marcapie_ficha_id_643d7d1e; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clinica_marcapie_ficha_id_643d7d1e ON public.clinica_marcapie USING btree (ficha_id);
+
+
+--
+-- Name: consentimiento_vigente_unico; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX consentimiento_vigente_unico ON public.clinica_consentimiento USING btree (paciente_id, tipo) WHERE (revocado_en IS NULL);
+
+
+--
+-- Name: cuentas_certificacion_profesional_id_a75cd33b; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_certificacion_profesional_id_a75cd33b ON public.cuentas_certificacion USING btree (profesional_id);
+
+
+--
+-- Name: cuentas_certificacion_verificada_por_id_9af60272; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_certificacion_verificada_por_id_9af60272 ON public.cuentas_certificacion USING btree (verificada_por_id);
+
+
+--
+-- Name: cuentas_codigorespaldo_usuario_id_179c9194; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_codigorespaldo_usuario_id_179c9194 ON public.cuentas_codigorespaldo USING btree (usuario_id);
+
+
+--
+-- Name: cuentas_paciente_rut_6e698b9d_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_paciente_rut_6e698b9d_like ON public.cuentas_paciente USING btree (rut varchar_pattern_ops);
+
+
+--
+-- Name: cuentas_profesional_tratamientos_profesional_id_4f6a6909; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_profesional_tratamientos_profesional_id_4f6a6909 ON public.cuentas_profesional_tratamientos USING btree (profesional_id);
+
+
+--
+-- Name: cuentas_profesional_tratamientos_tratamiento_id_db859b2e; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_profesional_tratamientos_tratamiento_id_db859b2e ON public.cuentas_profesional_tratamientos USING btree (tratamiento_id);
+
+
+--
+-- Name: cuentas_reg_vence_e_d41e55_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_reg_vence_e_d41e55_idx ON public.cuentas_registropendiente USING btree (vence_en);
+
+
+--
+-- Name: cuentas_registropendiente_token_hash_a46ed7ab_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_registropendiente_token_hash_a46ed7ab_like ON public.cuentas_registropendiente USING btree (token_hash varchar_pattern_ops);
+
+
+--
+-- Name: cuentas_usuario_email_86dc1160_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_usuario_email_86dc1160_like ON public.cuentas_usuario USING btree (email varchar_pattern_ops);
+
+
+--
+-- Name: cuentas_usuario_groups_group_id_e6725cc8; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_usuario_groups_group_id_e6725cc8 ON public.cuentas_usuario_groups USING btree (group_id);
+
+
+--
+-- Name: cuentas_usuario_groups_usuario_id_251ff583; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_usuario_groups_usuario_id_251ff583 ON public.cuentas_usuario_groups USING btree (usuario_id);
+
+
+--
+-- Name: cuentas_usuario_user_permissions_permission_id_1753ad79; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_usuario_user_permissions_permission_id_1753ad79 ON public.cuentas_usuario_user_permissions USING btree (permission_id);
+
+
+--
+-- Name: cuentas_usuario_user_permissions_usuario_id_5a9718f1; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX cuentas_usuario_user_permissions_usuario_id_5a9718f1 ON public.cuentas_usuario_user_permissions USING btree (usuario_id);
+
+
+--
+-- Name: django_admin_log_content_type_id_c4bce8eb; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX django_admin_log_content_type_id_c4bce8eb ON public.django_admin_log USING btree (content_type_id);
+
+
+--
+-- Name: django_admin_log_user_id_c564eba6; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX django_admin_log_user_id_c564eba6 ON public.django_admin_log USING btree (user_id);
+
+
+--
+-- Name: django_session_expire_date_a5c62663; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX django_session_expire_date_a5c62663 ON public.django_session USING btree (expire_date);
+
+
+--
+-- Name: django_session_session_key_c0390e0f_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX django_session_session_key_c0390e0f_like ON public.django_session USING btree (session_key varchar_pattern_ops);
+
+
+--
+-- Name: marca_pie_vigente_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX marca_pie_vigente_idx ON public.clinica_marcapie USING btree (ficha_id) WHERE (retirada_en IS NULL);
+
+
+--
+-- Name: notif_destinatario_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notif_destinatario_idx ON public.agenda_notificacion USING btree (destinatario_id, programada_para);
+
+
+--
+-- Name: notif_estado_programada_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notif_estado_programada_idx ON public.agenda_notificacion USING btree (estado, programada_para);
+
+
+--
+-- Name: otp_totp_totpdevice_user_id_0fb18292; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX otp_totp_totpdevice_user_id_0fb18292 ON public.otp_totp_totpdevice USING btree (user_id);
+
+
+--
+-- Name: pago_estado_vence_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX pago_estado_vence_idx ON public.pagos_pago USING btree (estado, vence_en);
+
+
+--
+-- Name: pagos_pago_orden_compra_770cc257_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX pagos_pago_orden_compra_770cc257_like ON public.pagos_pago USING btree (orden_compra varchar_pattern_ops);
+
+
+--
+-- Name: pagos_pago_token_06dc183e_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX pagos_pago_token_06dc183e_like ON public.pagos_pago USING btree (token varchar_pattern_ops);
+
+
+--
+-- Name: usuario_email_ci_unico; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX usuario_email_ci_unico ON public.cuentas_usuario USING btree (lower((email)::text));
+
+
+--
+-- Name: auditoria_registroauditoria auditoria_solo_escritura; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER auditoria_solo_escritura BEFORE DELETE OR UPDATE ON public.auditoria_registroauditoria FOR EACH ROW EXECUTE FUNCTION public.auditoria_bloquear_modificacion();
+
+
+--
+-- Name: agenda_bloqueohorario agenda_bloqueohorari_profesional_id_0ece6946_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_bloqueohorario
+    ADD CONSTRAINT agenda_bloqueohorari_profesional_id_0ece6946_fk_cuentas_p FOREIGN KEY (profesional_id) REFERENCES public.cuentas_profesional(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: agenda_cita agenda_cita_paciente_id_c031df85_fk_cuentas_paciente_usuario_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_cita
+    ADD CONSTRAINT agenda_cita_paciente_id_c031df85_fk_cuentas_paciente_usuario_id FOREIGN KEY (paciente_id) REFERENCES public.cuentas_paciente(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: agenda_cita agenda_cita_profesional_id_b9f89aca_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_cita
+    ADD CONSTRAINT agenda_cita_profesional_id_b9f89aca_fk_cuentas_p FOREIGN KEY (profesional_id) REFERENCES public.cuentas_profesional(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: agenda_cita agenda_cita_tratamiento_id_339d5b2a_fk_agenda_tratamiento_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_cita
+    ADD CONSTRAINT agenda_cita_tratamiento_id_339d5b2a_fk_agenda_tratamiento_id FOREIGN KEY (tratamiento_id) REFERENCES public.agenda_tratamiento(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: agenda_disponibilidad agenda_disponibilida_profesional_id_8c0b8fc4_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_disponibilidad
+    ADD CONSTRAINT agenda_disponibilida_profesional_id_8c0b8fc4_fk_cuentas_p FOREIGN KEY (profesional_id) REFERENCES public.cuentas_profesional(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: agenda_notificacion agenda_notificacion_cita_id_9c27e2a4_fk_agenda_cita_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_notificacion
+    ADD CONSTRAINT agenda_notificacion_cita_id_9c27e2a4_fk_agenda_cita_id FOREIGN KEY (cita_id) REFERENCES public.agenda_cita(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: agenda_notificacion agenda_notificacion_destinatario_id_b343b730_fk_cuentas_u; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.agenda_notificacion
+    ADD CONSTRAINT agenda_notificacion_destinatario_id_b343b730_fk_cuentas_u FOREIGN KEY (destinatario_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: auditoria_registroauditoria auditoria_registroau_usuario_id_5900964c_fk_cuentas_u; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auditoria_registroauditoria
+    ADD CONSTRAINT auditoria_registroau_usuario_id_5900964c_fk_cuentas_u FOREIGN KEY (usuario_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: auth_group_permissions auth_group_permissio_permission_id_84c5c92e_fk_auth_perm; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_group_permissions
+    ADD CONSTRAINT auth_group_permissio_permission_id_84c5c92e_fk_auth_perm FOREIGN KEY (permission_id) REFERENCES public.auth_permission(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: auth_group_permissions auth_group_permissions_group_id_b120cbf9_fk_auth_group_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_group_permissions
+    ADD CONSTRAINT auth_group_permissions_group_id_b120cbf9_fk_auth_group_id FOREIGN KEY (group_id) REFERENCES public.auth_group(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: auth_permission auth_permission_content_type_id_2f476e4b_fk_django_co; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_permission
+    ADD CONSTRAINT auth_permission_content_type_id_2f476e4b_fk_django_co FOREIGN KEY (content_type_id) REFERENCES public.django_content_type(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: chatbot_conversacionchatbot chatbot_conversacion_paciente_id_d9b1a3c9_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chatbot_conversacionchatbot
+    ADD CONSTRAINT chatbot_conversacion_paciente_id_d9b1a3c9_fk_cuentas_p FOREIGN KEY (paciente_id) REFERENCES public.cuentas_paciente(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: chatbot_fotochatbot chatbot_fotochatbot_interaccion_id_ede4592a_fk_chatbot_i; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chatbot_fotochatbot
+    ADD CONSTRAINT chatbot_fotochatbot_interaccion_id_ede4592a_fk_chatbot_i FOREIGN KEY (interaccion_id) REFERENCES public.chatbot_interaccionchatbot(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: chatbot_interaccionchatbot chatbot_interaccionc_conversacion_id_613e53b2_fk_chatbot_c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chatbot_interaccionchatbot
+    ADD CONSTRAINT chatbot_interaccionc_conversacion_id_613e53b2_fk_chatbot_c FOREIGN KEY (conversacion_id) REFERENCES public.chatbot_conversacionchatbot(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: chatbot_interaccionchatbot chatbot_interaccionc_paciente_id_4cd3d01f_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.chatbot_interaccionchatbot
+    ADD CONSTRAINT chatbot_interaccionc_paciente_id_4cd3d01f_fk_cuentas_p FOREIGN KEY (paciente_id) REFERENCES public.cuentas_paciente(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_atencionclinica clinica_atencionclin_corrige_id_9db933c5_fk_clinica_a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_atencionclinica
+    ADD CONSTRAINT clinica_atencionclin_corrige_id_9db933c5_fk_clinica_a FOREIGN KEY (corrige_id) REFERENCES public.clinica_atencionclinica(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_atencionclinica clinica_atencionclin_ficha_id_209a4b6b_fk_clinica_f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_atencionclinica
+    ADD CONSTRAINT clinica_atencionclin_ficha_id_209a4b6b_fk_clinica_f FOREIGN KEY (ficha_id) REFERENCES public.clinica_fichaclinica(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_atencionclinica clinica_atencionclin_profesional_id_321ae7e4_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_atencionclinica
+    ADD CONSTRAINT clinica_atencionclin_profesional_id_321ae7e4_fk_cuentas_p FOREIGN KEY (profesional_id) REFERENCES public.cuentas_profesional(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_atencionclinica clinica_atencionclinica_cita_id_7f349372_fk_agenda_cita_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_atencionclinica
+    ADD CONSTRAINT clinica_atencionclinica_cita_id_7f349372_fk_agenda_cita_id FOREIGN KEY (cita_id) REFERENCES public.agenda_cita(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_consentimiento clinica_consentimien_paciente_id_c9546447_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_consentimiento
+    ADD CONSTRAINT clinica_consentimien_paciente_id_c9546447_fk_cuentas_p FOREIGN KEY (paciente_id) REFERENCES public.cuentas_paciente(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_derivacion clinica_derivacion_atencion_id_413c173a_fk_clinica_a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_derivacion
+    ADD CONSTRAINT clinica_derivacion_atencion_id_413c173a_fk_clinica_a FOREIGN KEY (atencion_id) REFERENCES public.clinica_atencionclinica(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_fichaclinica clinica_fichaclinica_paciente_id_9b5208e8_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_fichaclinica
+    ADD CONSTRAINT clinica_fichaclinica_paciente_id_9b5208e8_fk_cuentas_p FOREIGN KEY (paciente_id) REFERENCES public.cuentas_paciente(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_marcapie clinica_marcapie_atencion_alta_id_eb403986_fk_clinica_a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_marcapie
+    ADD CONSTRAINT clinica_marcapie_atencion_alta_id_eb403986_fk_clinica_a FOREIGN KEY (atencion_alta_id) REFERENCES public.clinica_atencionclinica(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_marcapie clinica_marcapie_atencion_baja_id_d9277d82_fk_clinica_a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_marcapie
+    ADD CONSTRAINT clinica_marcapie_atencion_baja_id_d9277d82_fk_clinica_a FOREIGN KEY (atencion_baja_id) REFERENCES public.clinica_atencionclinica(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: clinica_marcapie clinica_marcapie_ficha_id_643d7d1e_fk_clinica_fichaclinica_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clinica_marcapie
+    ADD CONSTRAINT clinica_marcapie_ficha_id_643d7d1e_fk_clinica_fichaclinica_id FOREIGN KEY (ficha_id) REFERENCES public.clinica_fichaclinica(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_certificacion cuentas_certificacio_profesional_id_a75cd33b_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_certificacion
+    ADD CONSTRAINT cuentas_certificacio_profesional_id_a75cd33b_fk_cuentas_p FOREIGN KEY (profesional_id) REFERENCES public.cuentas_profesional(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_certificacion cuentas_certificacio_verificada_por_id_9af60272_fk_cuentas_u; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_certificacion
+    ADD CONSTRAINT cuentas_certificacio_verificada_por_id_9af60272_fk_cuentas_u FOREIGN KEY (verificada_por_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_codigorespaldo cuentas_codigorespal_usuario_id_179c9194_fk_cuentas_u; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_codigorespaldo
+    ADD CONSTRAINT cuentas_codigorespal_usuario_id_179c9194_fk_cuentas_u FOREIGN KEY (usuario_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_paciente cuentas_paciente_usuario_id_072df6ee_fk_cuentas_usuario_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_paciente
+    ADD CONSTRAINT cuentas_paciente_usuario_id_072df6ee_fk_cuentas_usuario_id FOREIGN KEY (usuario_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_profesional_tratamientos cuentas_profesional__profesional_id_4f6a6909_fk_cuentas_p; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_profesional_tratamientos
+    ADD CONSTRAINT cuentas_profesional__profesional_id_4f6a6909_fk_cuentas_p FOREIGN KEY (profesional_id) REFERENCES public.cuentas_profesional(usuario_id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_profesional_tratamientos cuentas_profesional__tratamiento_id_db859b2e_fk_agenda_tr; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_profesional_tratamientos
+    ADD CONSTRAINT cuentas_profesional__tratamiento_id_db859b2e_fk_agenda_tr FOREIGN KEY (tratamiento_id) REFERENCES public.agenda_tratamiento(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_profesional cuentas_profesional_usuario_id_82ff18b8_fk_cuentas_usuario_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_profesional
+    ADD CONSTRAINT cuentas_profesional_usuario_id_82ff18b8_fk_cuentas_usuario_id FOREIGN KEY (usuario_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_usuario_groups cuentas_usuario_grou_usuario_id_251ff583_fk_cuentas_u; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario_groups
+    ADD CONSTRAINT cuentas_usuario_grou_usuario_id_251ff583_fk_cuentas_u FOREIGN KEY (usuario_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_usuario_groups cuentas_usuario_groups_group_id_e6725cc8_fk_auth_group_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario_groups
+    ADD CONSTRAINT cuentas_usuario_groups_group_id_e6725cc8_fk_auth_group_id FOREIGN KEY (group_id) REFERENCES public.auth_group(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_usuario_user_permissions cuentas_usuario_user_permission_id_1753ad79_fk_auth_perm; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario_user_permissions
+    ADD CONSTRAINT cuentas_usuario_user_permission_id_1753ad79_fk_auth_perm FOREIGN KEY (permission_id) REFERENCES public.auth_permission(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: cuentas_usuario_user_permissions cuentas_usuario_user_usuario_id_5a9718f1_fk_cuentas_u; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cuentas_usuario_user_permissions
+    ADD CONSTRAINT cuentas_usuario_user_usuario_id_5a9718f1_fk_cuentas_u FOREIGN KEY (usuario_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: django_admin_log django_admin_log_content_type_id_c4bce8eb_fk_django_co; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.django_admin_log
+    ADD CONSTRAINT django_admin_log_content_type_id_c4bce8eb_fk_django_co FOREIGN KEY (content_type_id) REFERENCES public.django_content_type(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: django_admin_log django_admin_log_user_id_c564eba6_fk_cuentas_usuario_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.django_admin_log
+    ADD CONSTRAINT django_admin_log_user_id_c564eba6_fk_cuentas_usuario_id FOREIGN KEY (user_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: otp_totp_totpdevice otp_totp_totpdevice_user_id_0fb18292_fk_cuentas_usuario_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.otp_totp_totpdevice
+    ADD CONSTRAINT otp_totp_totpdevice_user_id_0fb18292_fk_cuentas_usuario_id FOREIGN KEY (user_id) REFERENCES public.cuentas_usuario(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- Name: pagos_pago pagos_pago_cita_id_710a9c48_fk_agenda_cita_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagos_pago
+    ADD CONSTRAINT pagos_pago_cita_id_710a9c48_fk_agenda_cita_id FOREIGN KEY (cita_id) REFERENCES public.agenda_cita(id) DEFERRABLE INITIALLY DEFERRED;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict ShOBzQR2R7jntTV1R60Vnaq5rcFiPgKhhNufk48LXPSJwJ5FMQDD5Gsn73ZYxka
+
